@@ -1,0 +1,90 @@
+node_modules
+
+// add .env file to .gitignore
+.env
+
+// add dist directory to .gitignore
+dist    
+
+// add build directory to .gitignore
+build
+
+// add coverage directory to .gitignore
+coverage
+
+// add logs directory to .gitignore
+logs
+
+// add tmp directory to .gitignore
+tmp
+
+// add .DS_Store to .gitignore
+.DS_Store
+
+// add .vscode directory to .gitignore
+.vscode
+
+// add .idea directory to .gitignore    
+
+.idea   
+
+// add .env.local to .gitignore
+.env.local
+
+// add .env.development to .gitignore
+.env.development
+
+// add .env.test to .gitignore
+.env.test
+
+// add .env.production to .gitignore
+.env.production
+
+// add .eslintcache to .gitignore
+.eslintcache
+
+// add .cache to .gitignore
+.cache
+
+// add npm-debug.log to .gitignore
+npm-debug.log
+
+// add yarn-debug.log to .gitignore
+yarn-debug.log
+
+// add yarn-error.log to .gitignore 
+
+yarn-error.log      
+
+// add package-lock.json to .gitignore
+package-lock.json   
+
+// add yarn.lock to .gitignore
+yarn.lock
+
+// add pnpm-lock.yaml to .gitignore
+pnpm-lock.yaml
+
+// add .next directory to .gitignore
+.next
+
+// add .nuxt directory to .gitignore
+.nuxt
+
+// add .cache directory to .gitignore
+.cache
+
+// add .parcel-cache directory to .gitignore
+.parcel-cache
+
+// add .storybook directory to .gitignore
+.storybook
+
+// add .sass-cache directory to .gitignore
+.sass-cache
+
+// add .nuxt directory to .gitignore
+.nuxt
+
+// add .cache-loader directory to .gitignore
+.cache-loader
