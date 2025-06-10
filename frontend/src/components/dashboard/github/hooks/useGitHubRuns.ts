@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { WorkflowRun } from '../../../types/github';
+import type { WorkflowRun } from '../../types/github';
 
 interface UseGitHubRunsProps {
   repo: string;

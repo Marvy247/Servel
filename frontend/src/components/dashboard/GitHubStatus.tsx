@@ -1,19 +1,16 @@
 import { useState, useEffect, useCallback } from 'react';
 import { SecurityTab } from './github/tabs/SecurityTab';
-import { DeploymentsTab } from './github/tabs/DeploymentsTab';
-import { StatusBadge } from './StatusBadge';
-import { getWorkflowStatus } from '../../types/github';
-import StatsCard from './github/components/StatsCard';
+import { StatusBadge } from './github/components/StatusBadge';
+import { StatsCard } from './github/components/StatsCard';
 import { calculateRunStats, filterRecentRuns } from './github/utils/calculateStats';
-import WorkflowRunItem from './github/components/WorkflowRunItem';
 import type { 
   GitHubStatusProps, 
-  SlitherFinding, 
-  RunHistoryStats, 
   ActiveTab, 
   StatsTimeRange,
-  WorkflowRun 
-} from '../../types/github';
+  WorkflowRun,
+  Deployment,
+  RunHistoryStats
+} from './types/github';
 
 interface RunStats {
   avgDuration: number;
@@ -48,7 +45,6 @@ const createStats = (
   }
 });
 
-
 export function GitHubStatus({ repo, workflow, branch }: GitHubStatusProps) {
   const [activeTab, setActiveTab] = useState<ActiveTab>('ci');
   const [runs, setRuns] = useState<WorkflowRun[]>([]);
@@ -56,12 +52,10 @@ export function GitHubStatus({ repo, workflow, branch }: GitHubStatusProps) {
   const [error, setError] = useState('');
   const [selectedBranch, setSelectedBranch] = useState(branch || '');
   const [selectedWorkflow, setSelectedWorkflow] = useState(workflow || '');
-  const [deployments, setDeployments] = useState<any[]>([]);
+  const [deployments, setDeployments] = useState<Deployment[]>([]);
   const [deploymentLoading, setDeploymentLoading] = useState(false);
-
   const [statsTimeRange, setStatsTimeRange] = useState<StatsTimeRange>('7d');
   const [expandedRun, setExpandedRun] = useState<string | null>(null);
-
 
   const fetchRuns = useCallback(async () => {
     setLoading(true);
@@ -123,42 +117,27 @@ export function GitHubStatus({ repo, workflow, branch }: GitHubStatusProps) {
 
   return (
     <div className="space-y-4">
-      <div className="mb-4">
-        <nav className="flex space-x-4">
-          {['ci', 'security', 'deployments'].map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab as ActiveTab)}
-              className={`px-4 py-2 rounded ${
-                activeTab === tab ? 'bg-blue-500 text-white' : 'bg-gray-200'
-              }`}
-            >
-              {tab.toUpperCase()}
-            </button>
-          ))}
-        </nav>
-      </div>
       <div className="flex items-center justify-between">
-        <div className="flex space-x-4">
+        <div className="flex space-x-2">
           <select
-            value={selectedWorkflow}
-            onChange={(e) => setSelectedWorkflow(e.target.value)}
-            className="border rounded px-3 py-1"
+            value={selectedBranch}
+            onChange={(e) => setSelectedBranch(e.target.value)}
+            className="px-3 py-1 border rounded"
           >
-            {workflows.map((wf) => (
-              <option key={wf} value={wf}>
-                {wf}
+            {branches.map((branch) => (
+              <option key={branch} value={branch}>
+                {branch}
               </option>
             ))}
           </select>
           <select
-            value={selectedBranch}
-            onChange={(e) => setSelectedBranch(e.target.value)}
-            className="border rounded px-3 py-1"
+            value={selectedWorkflow}
+            onChange={(e) => setSelectedWorkflow(e.target.value)}
+            className="px-3 py-1 border rounded"
           >
-            {branches.map((b) => (
-              <option key={b} value={b}>
-                {b}
+            {workflows.map((workflow) => (
+              <option key={workflow} value={workflow}>
+                {workflow}
               </option>
             ))}
           </select>
@@ -183,7 +162,6 @@ export function GitHubStatus({ repo, workflow, branch }: GitHubStatusProps) {
         <StatsCard
           title="Success Rate"
           stats={{
-            ...stats,
             successRate: stats.successRate,
             avgDuration: stats.avgDuration
           }}
@@ -192,8 +170,7 @@ export function GitHubStatus({ repo, workflow, branch }: GitHubStatusProps) {
         <StatsCard
           title="Duration"
           stats={{
-            ...stats,
-            successRate: 100, // Not used for duration card
+            successRate: 100,
             avgDuration: stats.avgDuration
           }}
           icon={<span>⏱️</span>}
@@ -201,38 +178,100 @@ export function GitHubStatus({ repo, workflow, branch }: GitHubStatusProps) {
         <StatsCard
           title="Coverage"
           stats={{
-            ...stats,
             successRate: parseFloat(testCoverage.replace('%', '')),
-            avgDuration: 0 // Not used for coverage card
+            avgDuration: 0
           }}
           icon={<span>📊</span>}
         />
       </div>
 
-      {activeTab === 'security' && <SecurityTab repo={repo} />}
-      {activeTab === 'deployments' && <DeploymentsTab repo={repo} />}
+      <div className="flex border-b">
+        <button
+          onClick={() => setActiveTab('ci')}
+          className={`px-4 py-2 ${activeTab === 'ci' ? 'border-b-2 border-blue-500' : ''}`}
+        >
+          CI Runs
+        </button>
+        <button
+          onClick={() => setActiveTab('security')}
+          className={`px-4 py-2 ${activeTab === 'security' ? 'border-b-2 border-blue-500' : ''}`}
+        >
+          Security
+        </button>
+        <button
+          onClick={() => setActiveTab('deployments')}
+          className={`px-4 py-2 ${activeTab === 'deployments' ? 'border-b-2 border-blue-500' : ''}`}
+        >
+          Deployments
+        </button>
+      </div>
 
       {activeTab === 'ci' && (
         <div className="space-y-2">
           {recentRuns.map((run) => (
-            <div 
+            <div
               key={run.id}
-              className="p-4 border rounded cursor-pointer hover:bg-gray-50"
-              onClick={() => handleRunClick(run.id.toString())}
+              className="p-3 border rounded hover:bg-gray-50 cursor-pointer"
+              onClick={() => handleRunClick(run.id)}
             >
-              <div className="flex justify-between items-center">
-                <span className="font-medium">{run.name}</span>
-                <StatusBadge status={run.status} />
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <StatusBadge status={run.status === 'completed' ? 
+                    (run.conclusion === 'success' ? 'completed' : 'failed') : 
+                    run.status} />
+                  <span>{run.name}</span>
+                  <span className="text-sm text-gray-500">{run.branch}</span>
+                </div>
+                <div className="text-sm text-gray-500">
+                  {new Date(run.created_at).toLocaleString()}
+                </div>
               </div>
-              {expandedRun === run.id.toString() && (
-                <div className="mt-2 text-sm text-gray-600">
-                  <p>Branch: {run.branch}</p>
-                  <p>Duration: {(run.duration / 60).toFixed(1)} minutes</p>
-                  <p>Started: {new Date(run.created_at).toLocaleString()}</p>
+              {expandedRun === run.id && (
+                <div className="mt-2 pl-8 text-sm">
+                  <div>Duration: {(run.duration / 60).toFixed(1)} minutes</div>
+                  {run.test_summary && (
+                    <div>
+                      Tests: {run.test_summary.passed} passed, {run.test_summary.failed} failed
+                    </div>
+                  )}
+                  <a
+                    href={run.html_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-500 hover:underline"
+                  >
+                    View on GitHub
+                  </a>
                 </div>
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {activeTab === 'security' && <SecurityTab repo={repo} />}
+
+      {activeTab === 'deployments' && (
+        <div className="space-y-2">
+          {deploymentLoading ? (
+            <div>Loading deployments...</div>
+          ) : (
+            deployments.map((deployment) => (
+              <div key={deployment.id} className="p-3 border rounded">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-medium">{deployment.environment}</div>
+                    <div className="text-sm text-gray-500">
+                      {new Date(deployment.created_at).toLocaleString()}
+                    </div>
+                  </div>
+                  <StatusBadge
+                    status={deployment.status === 'active' ? 'completed' : 'in_progress'}
+                  />
+                </div>
+              </div>
+            ))
+          )}
         </div>
       )}
     </div>
