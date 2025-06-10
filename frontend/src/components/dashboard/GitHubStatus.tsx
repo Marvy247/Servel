@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { SecurityTab } from './github/tabs/SecurityTab';
+import { DeploymentsTab } from './github/tabs/DeploymentsTab';
 import { StatusBadge } from './StatusBadge';
 import { getWorkflowStatus } from '../../types/github';
 import StatsCard from './github/components/StatsCard';
@@ -40,11 +41,11 @@ const createStats = (
   successCount: calculated.successCount,
   failureCount: calculated.failureCount,
   totalDuration: calculated.totalDuration,
-  testStats: stats.testStats ? {
+  testStats: stats.testStats && {
     totalPassed: stats.testStats.totalPassed,
-    totalFailed: stats.testStats.totalFailed,
+    totalFailed: stats.testStats.totalFailed, 
     flakyTests: stats.testStats.flakyTests || []
-  } : undefined
+  }
 });
 
 
@@ -209,6 +210,7 @@ export function GitHubStatus({ repo, workflow, branch }: GitHubStatusProps) {
       </div>
 
       {activeTab === 'security' && <SecurityTab repo={repo} />}
+      {activeTab === 'deployments' && <DeploymentsTab repo={repo} />}
 
       {activeTab === 'ci' && (
         <div className="space-y-2">
