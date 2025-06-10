@@ -140,4 +140,18 @@ export class EventListenerService {
     // Close WebSocket server
     this.wss.close()
   }
+
+  broadcastToClients(message: any): void {
+    if (!this.wss) return;
+    
+    this.wss.clients.forEach((client: WebSocket) => {
+      if (client.readyState === WebSocket.OPEN) {
+        try {
+          client.send(JSON.stringify(message));
+        } catch (error) {
+          console.error('Failed to broadcast message:', error);
+        }
+      }
+    });
+  }
 }

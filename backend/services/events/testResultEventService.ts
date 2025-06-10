@@ -1,101 +1,76 @@
- import { WebSocket } from 'ws'
-import { EventListenerService } from './eventListenerService'
-import { 
-  TestResultEvent, 
-  TestEventFilter,
-  TestEventSubscription
-} from '../../types/testEvents'
+import { TestHistoryService } from '../storage/testHistoryService';
+import type { TestResultEvent } from '../../types/testEvents';
+import logger from '../../utils/logger';
+import { EventListenerService } from './eventListenerService';
 
-const ACTIVE_TEST_SUBSCRIPTIONS = new Map<string, TestEventSubscription>()
-const TEST_EVENT_RATE_LIMIT = 100 // More frequent than blockchain events
+export class TestResultEventService {
+  private subscriptions = new Map<string, (event: TestResultEvent) => void>();
+  private eventListenerService: EventListenerService;
 
-export class TestResultEventService extends EventListenerService {
-  private testEventCounts = new Map<string, number>()
-
-  constructor(providerUrl: string, wssPort: number) {
-    super(providerUrl, wssPort)
-    this.setupWebSocketServer()
+  constructor(eventListenerService: EventListenerService) {
+    this.eventListenerService = eventListenerService;
   }
 
-  protected override setupWebSocketServer() {
-    super.setupWebSocketServer()
-    
-    // Add test-specific handlers
-    this.wss?.on('connection', (ws: WebSocket, req: any) => {
-      const clientId = req.headers['sec-websocket-key'] || Math.random().toString(36).substring(2)
-      this.testEventCounts.set(clientId, 0)
+  async handleTestResultEvent(event: TestResultEvent): Promise<void> {
+    try {
+      // Validate event structure
+      if (!event.projectId || !event.timestamp) {
+        throw new Error('Invalid test result event - missing required fields');
+      }
 
-      ws.on('message', async (message: string) => {
+      // Store test results in history
+      await TestHistoryService.storeTestResults(event);
+
+      // Broadcast to WebSocket clients
+      this.eventListenerService.broadcastToClients({
+        type: 'test_result',
+        data: event
+      });
+
+      // Notify all subscribers
+      for (const callback of this.subscriptions.values()) {
         try {
-          const { action, data } = JSON.parse(message)
-          
-          if (action === 'subscribe') {
-            await this.handleTestSubscribe(ws, clientId, data)
-          } else if (action === 'unsubscribe') {
-            this.handleTestUnsubscribe(clientId, data?.subscriptionId)
-          }
+          callback(event);
         } catch (error) {
-          ws.send(JSON.stringify({ error: 'Invalid message format' }))
+          logger.error(`Error in test result event callback: ${error}`);
         }
-      })
-
-      ws.on('close', () => {
-        this.handleTestUnsubscribe(clientId)
-        this.testEventCounts.delete(clientId)
-      })
-    })
-  }
-
-  private async handleTestSubscribe(ws: WebSocket, clientId: string, filter: TestEventFilter) {
-    if (this.isTestRateLimited(clientId)) {
-      ws.send(JSON.stringify({ error: 'Rate limit exceeded' }))
-      return
-    }
-
-    const subscriptionId = Math.random().toString(36).substring(2, 10)
-    const callback = (event: TestResultEvent) => {
-      if (this.isTestRateLimited(clientId)) return
-      this.testEventCounts.set(clientId, (this.testEventCounts.get(clientId) || 0) + 1)
-      ws.send(JSON.stringify({ event, subscriptionId }))
-    }
-
-    const sub: TestEventSubscription = { id: subscriptionId, filter, callback }
-    ACTIVE_TEST_SUBSCRIPTIONS.set(subscriptionId, sub)
-
-    ws.send(JSON.stringify({ 
-      subscribed: true, 
-      subscriptionId,
-      filter
-    }))
-  }
-
-  private handleTestUnsubscribe(clientId: string, subscriptionId?: string) {
-    if (subscriptionId) {
-      ACTIVE_TEST_SUBSCRIPTIONS.delete(subscriptionId)
-    } else {
-      // Remove all subscriptions for this client
-      for (const [id, sub] of ACTIVE_TEST_SUBSCRIPTIONS) {
-        ACTIVE_TEST_SUBSCRIPTIONS.delete(id)
       }
+    } catch (error) {
+      logger.error(`Failed to process test result event: ${error}`);
+      throw error;
     }
   }
 
-  private isTestRateLimited(clientId: string): boolean {
-    const count = this.testEventCounts.get(clientId) || 0
-    return count >= TEST_EVENT_RATE_LIMIT
+  subscribe(callback: (event: TestResultEvent) => void): string {
+    const id = Math.random().toString(36).substring(2, 10);
+    this.subscriptions.set(id, callback);
+    logger.info(`New test result subscriber: ${id}`);
+    return id;
   }
 
-  public broadcastTestEvent(event: TestResultEvent) {
-    for (const [id, sub] of ACTIVE_TEST_SUBSCRIPTIONS) {
-      if (!sub.filter.projectId || sub.filter.projectId === event.projectId) {
-        sub.callback(event)
-      }
+  unsubscribe(id: string): boolean {
+    const result = this.subscriptions.delete(id);
+    if (result) {
+      logger.info(`Unsubscribed test result listener: ${id}`);
     }
+    return result;
   }
 
-  close(): void {
-    ACTIVE_TEST_SUBSCRIPTIONS.clear()
-    this.testEventCounts.clear()
-    super.close()
+  getSubscriptionCount(): number {
+    return this.subscriptions.size;
+  }
+
+  clearSubscriptions(): void {
+    this.subscriptions.clear();
+    logger.info('Cleared all test result subscriptions');
+  }
+
+  async getLatestResults(): Promise<TestResultEvent[]> {
+    try {
+      return await TestHistoryService.getLatestResults();
+    } catch (error) {
+      logger.error(`Failed to get latest test results: ${error}`);
+      throw error;
+    }
   }
 }

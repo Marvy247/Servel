@@ -1,6 +1,6 @@
 import { Octokit } from '@octokit/rest';
 import * as crypto from 'crypto';
-import type { DashboardConfig, GitHubWorkflowRun, GitHubPullRequest, TestResult, CoverageData, TestResultsHistory } from '../../types/dashboard';
+import type { DashboardConfig, GitHubWorkflowRun, GitHubPullRequest, TestResult, CoverageData, TestResultsHistory, GitHubRepoMetadata, GitHubCommit } from '../../types/dashboard';
 import { getConfig } from './configService';
 
 interface GitHubRepoStatus {
@@ -28,6 +28,8 @@ interface GitHubServiceCache {
   repoStatus?: CacheEntry<GitHubRepoStatus>;
   testResults?: CacheEntry<TestResult[]>;
   coverage?: CacheEntry<CoverageData>;
+  repoMetadata?: CacheEntry<GitHubRepoMetadata>;
+  commits?: CacheEntry<GitHubCommit[]>;
 }
 
 
@@ -430,7 +432,7 @@ export class GitHubService {
       openPullRequests: pulls.data.map((pr: any) => ({
         number: pr.number,
         title: pr.title,
-        state: pr.state,
+        state: pr.state as 'open' | 'closed' | 'merged',
         created_at: pr.created_at,
         updated_at: pr.updated_at,
         html_url: pr.html_url,
@@ -438,7 +440,18 @@ export class GitHubService {
           login: pr.user?.login || '',
           avatar_url: pr.user?.avatar_url || ''
         },
-        mergeable: pr.mergeable
+        labels: pr.labels?.map((label: any) => ({
+          name: label.name,
+          color: label.color
+        })) || [],
+        reviewStatus: (pr as any).review_decision === 'approved' ? 'approved' :
+                     (pr as any).review_decision === 'changes_requested' ? 'changes_requested' : 'pending',
+        branchName: pr.head?.ref || '',
+        baseBranch: pr.base?.ref || '',
+        additions: (pr as any).additions || 0,
+        deletions: (pr as any).deletions || 0,
+        changed_files: (pr as any).changed_files || 0,
+        mergeable: (pr as any).mergeable || null
       })),
       defaultBranchStatus: {
         status: (branchStatus.data.state === 'success' ? 'clean' : 
@@ -546,12 +559,16 @@ export class GitHubService {
     // Clear cache on push events since they may affect test results
     this.cache.repoStatus = undefined;
     this.cache.testResults = undefined;
+    this.cache.repoMetadata = undefined;
+    this.cache.commits = undefined;
   }
 
   async handlePullRequestEvent(payload: any): Promise<void> {
     // Clear cache when PRs are opened/updated/merged
     this.cache.repoStatus = undefined;
     this.cache.testResults = undefined;
+    this.cache.repoMetadata = undefined;
+    this.cache.commits = undefined;
   }
 
   async handleCheckRunEvent(payload: any): Promise<void> {
@@ -559,6 +576,116 @@ export class GitHubService {
     if (payload.action === 'completed') {
       this.cache.repoStatus = undefined;
     }
+  }
+
+  async getRepoMetadata(options: { 
+    forceRefresh?: boolean 
+  } = {}): Promise<GitHubRepoMetadata> {
+    if (!this.repoDetails) {
+      throw new Error('GitHub repository not configured');
+    }
+
+    if (options.forceRefresh) {
+      this.cache.repoMetadata = undefined;
+    }
+
+    if (this.cache?.repoMetadata && 
+        Date.now() - this.cache.repoMetadata.timestamp < CACHE_TTL) {
+      return this.cache.repoMetadata.data;
+    }
+
+    const { owner, repo } = this.repoDetails;
+    const response = await this.octokit.rest.repos.get({
+      owner,
+      repo
+    });
+
+    const metadata: GitHubRepoMetadata = {
+      description: response.data.description || '',
+      stars: response.data.stargazers_count,
+      forks: response.data.forks_count,
+      watchers: response.data.watchers_count,
+      openIssues: response.data.open_issues_count,
+      license: response.data.license?.name || null,
+      createdAt: response.data.created_at,
+      updatedAt: response.data.updated_at,
+      defaultBranch: response.data.default_branch,
+      visibility: response.data.visibility as 'public' | 'private',
+      archived: response.data.archived,
+      topics: response.data.topics || []
+    };
+
+    this.cache.repoMetadata = {
+      data: metadata,
+      timestamp: Date.now()
+    };
+
+    return metadata;
+  }
+
+  async getCommitHistory(options: {
+    branch?: string;
+    path?: string;
+    author?: string;
+    since?: string;
+    until?: string;
+    per_page?: number;
+    page?: number;
+  } = {}): Promise<GitHubCommit[]> {
+    if (!this.repoDetails) {
+      throw new Error('GitHub repository not configured');
+    }
+
+    const { owner, repo } = this.repoDetails;
+    const { 
+      branch,
+      path,
+      author,
+      since,
+      until,
+      per_page = 30,
+      page = 1
+    } = options;
+
+    const response = await this.octokit.rest.repos.listCommits({
+      owner,
+      repo,
+      sha: branch,
+      path,
+      author,
+      since,
+      until,
+      per_page,
+      page
+    });
+
+    return response.data.map(commit => ({
+      sha: commit.sha,
+      message: commit.commit.message,
+      author: {
+        name: commit.commit.author?.name || '',
+        email: commit.commit.author?.email || '',
+        date: commit.commit.author?.date || '',
+        avatar_url: commit.author?.avatar_url
+      },
+      committer: {
+        name: commit.commit.committer?.name || '',
+        email: commit.commit.committer?.email || '',
+        date: commit.commit.committer?.date || ''
+      },
+      html_url: commit.html_url,
+  stats: commit.stats ? {
+    additions: commit.stats.additions || 0,
+    deletions: commit.stats.deletions || 0,
+    total: (commit.stats.additions || 0) + (commit.stats.deletions || 0)
+  } : undefined,
+
+      files: commit.files?.map(file => ({
+        filename: file.filename,
+        changes: file.changes,
+        status: file.status as 'added' | 'removed' | 'modified' | 'renamed'
+      }))
+    }));
   }
 
   async cancelWorkflowRun(runId: string): Promise<void> {

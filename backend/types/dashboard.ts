@@ -23,6 +23,48 @@ export interface Deployment {
   };
 }
 
+export interface GitHubRepoMetadata {
+  description: string;
+  stars: number;
+  forks: number;
+  watchers: number;
+  openIssues: number;
+  license: string | null;
+  createdAt: string;
+  updatedAt: string;
+  defaultBranch: string;
+  visibility: 'public' | 'private';
+  archived: boolean;
+  topics: string[];
+}
+
+export interface GitHubCommit {
+  sha: string;
+  message: string;
+  author: {
+    name: string;
+    email: string;
+    date: string;
+    avatar_url?: string;
+  };
+  committer: {
+    name: string;
+    email: string;
+    date: string;
+  };
+  html_url: string;
+  stats?: {
+    additions: number;
+    deletions: number;
+    total: number;
+  };
+  files?: {
+    filename: string;
+    changes: number;
+    status: 'added' | 'removed' | 'modified' | 'renamed';
+  }[];
+}
+
 export interface GitHubWorkflowRun {
   id: string;
   name: string;
@@ -51,6 +93,16 @@ export interface GitHubPullRequest {
     avatar_url: string;
   };
   mergeable: boolean | null;
+  labels: {
+    name: string;
+    color: string;
+  }[];
+  reviewStatus?: 'approved' | 'changes_requested' | 'pending';
+  branchName: string;
+  baseBranch: string;
+  additions: number;
+  deletions: number;
+  changed_files: number;
 }
 
 export interface TestResult {

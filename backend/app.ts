@@ -4,6 +4,7 @@ import { verifyGitHubWebhook } from './middleware/githubWebhook';
 import apiRoutes from './routes/api';
 import dashboardRoutes from './routes/dashboard';
 import { EventListenerService } from './services/events/eventListenerService';
+import { TestResultEventService } from './services/events/testResultEventService';
 
 const app = express();
 
@@ -29,6 +30,9 @@ const providerUrl = process.env.PROVIDER_URL || 'http://localhost:8545';
 const wssPort = parseInt(process.env.WSS_PORT || '8080', 10);
 const eventListenerService = new EventListenerService(providerUrl, wssPort);
 
+// Initialize test result event handling
+const testResultEventService = new TestResultEventService(eventListenerService);
+
 const PORT = process.env.PORT || 3001;
 const server = app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
@@ -39,6 +43,7 @@ const server = app.listen(PORT, () => {
 const shutdown = () => {
   console.log('Shutting down server...');
   eventListenerService.close();
+  testResultEventService.clearSubscriptions();
   server.close(() => {
     console.log('HTTP server closed.');
     process.exit(0);
