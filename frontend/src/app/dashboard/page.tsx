@@ -5,6 +5,9 @@ import { GitHubStatus } from '../../components/dashboard/GitHubStatus'
 import { TestResults } from '../../components/dashboard/TestResults'
 import { SlitherReport } from '../../components/dashboard/SlitherReport'
 import { DeploymentHistory } from '../../components/dashboard/DeploymentHistory'
+import { ContractsList } from '../../components/dashboard/ContractsList'
+import { AnalysisSummary } from '../../components/dashboard/AnalysisSummary'
+import { TestingSummary } from '../../components/dashboard/TestingSummary'
 
 interface DashboardConfig {
   projectId: string
@@ -28,18 +31,14 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchConfig = async () => {
     try {
-      const response = await fetch('/api/dashboard/config')
-      const result: ApiResponse<DashboardConfig> = await response.json()
-      
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to load dashboard configuration')
+      // Mock config data since we don't have this endpoint
+      const mockConfig = {
+        projectId: 'test-project',
+        githubRepo: 'example/repo',
+        defaultWorkflow: 'ci.yml'
       }
+      setConfig(mockConfig)
       
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to load dashboard configuration')
-      }
-
-      setConfig(result.data)
 
       } catch (err) {
         setError('Failed to load dashboard configuration')
@@ -74,6 +73,18 @@ export default function DashboardPage() {
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-2xl font-bold mb-8">Project Dashboard</h1>
       
+      <div className="bg-white rounded-lg shadow p-6 mb-6">
+        <ContractsList projectId={config.projectId} />
+      </div>
+
+      <div className="bg-white rounded-lg shadow p-6 mb-6">
+        <AnalysisSummary projectId={config.projectId} />
+      </div>
+
+      <div className="bg-white rounded-lg shadow p-6 mb-6">
+        <TestingSummary projectId={config.projectId} />
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="space-y-6">
           <div className="bg-white rounded-lg shadow p-6">

@@ -53,44 +53,57 @@ export function TestResults({ projectId }: TestResultsProps) {
   const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
+    const handleResponse = async (response: Response) => {
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP error ${response.status}: ${errorText}`);
+      }
+      return response.json();
+    };
+
     const fetchResults = async () => {
-    try {
-      const [testResults, coverageData, slitherResults] = await Promise.all([
+      try {
+        const [testResults, coverageData] = await Promise.all([
           fetch(`/api/dashboard/test-results?projectId=${projectId}`),
-          fetch(`/api/dashboard/test-coverage?projectId=${projectId}`),
-          fetch(`/api/dashboard/slither/results?projectId=${projectId}`)
+          fetch(`/api/dashboard/test-coverage?projectId=${projectId}`)
         ]);
+
+        const resultsData = await handleResponse(testResults);
+        const coverage = await handleResponse(coverageData);
         
-        const resultsData = await testResults.json();
-        const coverage = await coverageData.json();
+        // Start with base test results
+        const combinedResults = [...(resultsData?.results || [])];
         
-        const slitherData = await slitherResults.json();
-        
-        // Combine test results with Slither findings
-        const combinedResults = [
-          ...(resultsData.results || []),
-          ...slitherData.findings.map((finding: any) => ({
-            id: `slither-${finding.id}`,
-            name: finding.title,
-            status: finding.severity === 'high' ? 'failed' : 'passed',
-            duration: 0,
-            timestamp: finding.created_at,
-            details: finding.description,
-            type: 'security',
-            artifactUrl: finding.artifactUrl,
-            logUrl: finding.sourceUrl
-          }))
-        ];
+        // Try to get slither results if available
+        try {
+          const slitherResponse = await fetch(`/api/dashboard/slither/results?projectId=${projectId}`);
+          if (slitherResponse.ok) {
+            const slitherData = await slitherResponse.json();
+            combinedResults.push(...slitherData.findings.map((finding: any) => ({
+              id: `slither-${finding.id}`,
+              name: finding.title,
+              status: finding.severity === 'high' ? 'failed' : 'passed',
+              duration: 0,
+              timestamp: finding.created_at,
+              details: finding.description,
+              type: 'security',
+              artifactUrl: finding.artifactUrl,
+              logUrl: finding.sourceUrl
+            })));
+          }
+        } catch (slitherError) {
+          console.log('Slither results not available');
+        }
 
         setResults(combinedResults);
         setStats({
           ...(resultsData.stats || {}),
           coverage: coverage?.data?.total || 0,
-          slitherFindings: slitherData.findings.length
+          slitherFindings: resultsData.stats?.slitherFindings || 0
         });
-      } catch (err) {
-        setError('Failed to load test results');
-        console.error(err);
+      } catch (error: any) {
+        setError(`Failed to load test results: ${error.message}`);
+        console.error(error);
       } finally {
         setLoading(false);
       }
@@ -117,8 +130,6 @@ export function TestResults({ projectId }: TestResultsProps) {
     };
 
     setupWebSocket();
-    
-    // Keep polling as fallback
     fetchResults();
     const interval = setInterval(fetchResults, 60000); // Refresh every minute
     
@@ -162,24 +173,24 @@ export function TestResults({ projectId }: TestResultsProps) {
             </div>
           )}
           <div className="flex space-x-2">
-          <button
-            onClick={() => setFilter('all')}
-            className={`px-3 py-1 text-sm rounded ${filter === 'all' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100'}`}
-          >
-            All
-          </button>
-          <button
-            onClick={() => setFilter('passed')}
-            className={`px-3 py-1 text-sm rounded ${filter === 'passed' ? 'bg-green-100 text-green-800' : 'bg-gray-100'}`}
-          >
-            Passed
-          </button>
-          <button
-            onClick={() => setFilter('failed')}
-            className={`px-3 py-1 text-sm rounded ${filter === 'failed' ? 'bg-red-100 text-red-800' : 'bg-gray-100'}`}
-          >
-            Failed
-          </button>
+            <button
+              onClick={() => setFilter('all')}
+              className={`px-3 py-1 text-sm rounded ${filter === 'all' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100'}`}
+            >
+              All
+            </button>
+            <button
+              onClick={() => setFilter('passed')}
+              className={`px-3 py-1 text-sm rounded ${filter === 'passed' ? 'bg-green-100 text-green-800' : 'bg-gray-100'}`}
+            >
+              Passed
+            </button>
+            <button
+              onClick={() => setFilter('failed')}
+              className={`px-3 py-1 text-sm rounded ${filter === 'failed' ? 'bg-red-100 text-red-800' : 'bg-gray-100'}`}
+            >
+              Failed
+            </button>
           </div>
           <div className="flex space-x-2">
             <button
@@ -200,31 +211,30 @@ export function TestResults({ projectId }: TestResultsProps) {
             >
               Integration
             </button>
-          <button
-            onClick={() => setTestType('e2e')}
-            className={`px-3 py-1 text-sm rounded ${testType === 'e2e' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100'}`}
-          >
-            E2E
-          </button>
-          <button
-            onClick={() => setTestType('fuzz')}
-            className={`px-3 py-1 text-sm rounded ${testType === 'fuzz' ? 'bg-orange-100 text-orange-800' : 'bg-gray-100'}`}
-          >
-            Fuzz
-          </button>
-          <button
-            onClick={() => setTestType('invariant')}
-            className={`px-3 py-1 text-sm rounded ${testType === 'invariant' ? 'bg-indigo-100 text-indigo-800' : 'bg-gray-100'}`}
-          >
-            Invariant
-          </button>
-          <button
-            onClick={() => setTestType('security')}
-            className={`px-3 py-1 text-sm rounded ${testType === 'security' ? 'bg-red-100 text-red-800' : 'bg-gray-100'}`}
-          >
-            Security
-          </button>
-
+            <button
+              onClick={() => setTestType('e2e')}
+              className={`px-3 py-1 text-sm rounded ${testType === 'e2e' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100'}`}
+            >
+              E2E
+            </button>
+            <button
+              onClick={() => setTestType('fuzz')}
+              className={`px-3 py-1 text-sm rounded ${testType === 'fuzz' ? 'bg-orange-100 text-orange-800' : 'bg-gray-100'}`}
+            >
+              Fuzz
+            </button>
+            <button
+              onClick={() => setTestType('invariant')}
+              className={`px-3 py-1 text-sm rounded ${testType === 'invariant' ? 'bg-indigo-100 text-indigo-800' : 'bg-gray-100'}`}
+            >
+              Invariant
+            </button>
+            <button
+              onClick={() => setTestType('security')}
+              className={`px-3 py-1 text-sm rounded ${testType === 'security' ? 'bg-red-100 text-red-800' : 'bg-gray-100'}`}
+            >
+              Security
+            </button>
           </div>
         </div>
       </div>
@@ -299,30 +309,29 @@ export function TestResults({ projectId }: TestResultsProps) {
                   <StatusBadge status={statusMap[result.status]} />
                   <span>{result.name}</span>
                 </div>
-              <div className="text-sm text-gray-500">
-                <span className="font-medium">{result.duration}ms</span>
-                {result.gasUsed !== undefined && (
-                  <span className="ml-2" title="Gas used">
-                    ⛽ {result.gasUsed}
-                  </span>
-                )}
-                {result.fuzzRuns !== undefined && (
-                  <span className="ml-2" title="Fuzz iterations">
-                    🔄 {result.fuzzRuns}
-                  </span>
-                )}
-                {result.invariantChecks !== undefined && (
-                  <span className="ml-2" title="Invariant checks">
-                    🛡️ {result.invariantChecks}
-                  </span>
-                )}
-                {result.coverage !== undefined && (
-                  <span className="ml-2" title={`Coverage: ${result.coverage.lines}% lines, ${result.coverage.functions}% functions, ${result.coverage.branches}% branches`}>
-                    📊 {result.coverage.lines}% lines ({result.coverage.functions}% fn)
-                  </span>
-                )}
-              </div>
-
+                <div className="text-sm text-gray-500">
+                  <span className="font-medium">{result.duration}ms</span>
+                  {result.gasUsed !== undefined && (
+                    <span className="ml-2" title="Gas used">
+                      ⛽ {result.gasUsed}
+                    </span>
+                  )}
+                  {result.fuzzRuns !== undefined && (
+                    <span className="ml-2" title="Fuzz iterations">
+                      🔄 {result.fuzzRuns}
+                    </span>
+                  )}
+                  {result.invariantChecks !== undefined && (
+                    <span className="ml-2" title="Invariant checks">
+                      🛡️ {result.invariantChecks}
+                    </span>
+                  )}
+                  {result.coverage !== undefined && (
+                    <span className="ml-2" title={`Coverage: ${result.coverage.lines}% lines, ${result.coverage.functions}% functions, ${result.coverage.branches}% branches`}>
+                      📊 {result.coverage.lines}% lines ({result.coverage.functions}% fn)
+                    </span>
+                  )}
+                </div>
               </div>
               {result.details && (
                 <div className="mt-2 text-sm text-gray-600">

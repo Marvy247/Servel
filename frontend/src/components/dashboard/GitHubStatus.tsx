@@ -1,7 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { SecurityTab } from './github/tabs/SecurityTab';
 import { StatusBadge } from './github/components/StatusBadge';
-import { StatsCard } from './github/components/StatsCard';
+import { StatsSection } from './github/components/StatsSection';
+import { RunList } from './github/components/RunList';
+import { useGitHubRuns } from './github/hooks/useGitHubRuns';
+import { useDeployments } from './github/hooks/useDeployments';
 import { calculateRunStats, filterRecentRuns } from './github/utils/calculateStats';
 import type { 
   GitHubStatusProps, 
@@ -47,51 +50,24 @@ const createStats = (
 
 export function GitHubStatus({ repo, workflow, branch }: GitHubStatusProps) {
   const [activeTab, setActiveTab] = useState<ActiveTab>('ci');
-  const [runs, setRuns] = useState<WorkflowRun[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [selectedBranch, setSelectedBranch] = useState(branch || '');
   const [selectedWorkflow, setSelectedWorkflow] = useState(workflow || '');
-  const [deployments, setDeployments] = useState<Deployment[]>([]);
-  const [deploymentLoading, setDeploymentLoading] = useState(false);
+  const { runs, loading, error, refetch } = useGitHubRuns({
+    repo,
+    workflow: selectedWorkflow,
+    branch: selectedBranch
+  });
+  const { deployments, loading: deploymentLoading } = useDeployments(repo);
+  const fetchRuns = useCallback(() => refetch(), [refetch]);
   const [statsTimeRange, setStatsTimeRange] = useState<StatsTimeRange>('7d');
   const [expandedRun, setExpandedRun] = useState<string | null>(null);
-
-  const fetchRuns = useCallback(async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(
-        `/api/github/${repo}/actions/runs?workflow=${selectedWorkflow}&branch=${selectedBranch}`
-      );
-      const data = await response.json();
-      setRuns(data.workflow_runs || []);
-    } catch (err) {
-      setError('Failed to fetch workflow runs');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  }, [repo, selectedWorkflow, selectedBranch]);
-
-  const fetchDeployments = useCallback(async () => {
-    setDeploymentLoading(true);
-    try {
-      const response = await fetch(`/api/github/${repo}/deployments`);
-      const data = await response.json();
-      setDeployments(data.deployments || []);
-    } catch (err) {
-      console.error('Failed to fetch deployments:', err);
-    } finally {
-      setDeploymentLoading(false);
-    }
-  }, [repo]);
 
   useEffect(() => {
     fetchRuns();
     if (activeTab === 'deployments') {
-      fetchDeployments();
+      // Deployments are automatically fetched by the useDeployments hook
     }
-  }, [fetchRuns, fetchDeployments, activeTab]);
+  }, [fetchRuns, activeTab]);
 
   const handleRunClick = (runId: string) => {
     setExpandedRun(expandedRun === runId ? null : runId);
@@ -158,32 +134,7 @@ export function GitHubStatus({ repo, workflow, branch }: GitHubStatusProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <StatsCard
-          title="Success Rate"
-          stats={{
-            successRate: stats.successRate,
-            avgDuration: stats.avgDuration
-          }}
-          icon={<span>✅</span>}
-        />
-        <StatsCard
-          title="Duration"
-          stats={{
-            successRate: 100,
-            avgDuration: stats.avgDuration
-          }}
-          icon={<span>⏱️</span>}
-        />
-        <StatsCard
-          title="Coverage"
-          stats={{
-            successRate: parseFloat(testCoverage.replace('%', '')),
-            avgDuration: 0
-          }}
-          icon={<span>📊</span>}
-        />
-      </div>
+      <StatsSection stats={stats} testCoverage={testCoverage.replace('%', '')} />
 
       <div className="flex border-b">
         <button
@@ -207,46 +158,11 @@ export function GitHubStatus({ repo, workflow, branch }: GitHubStatusProps) {
       </div>
 
       {activeTab === 'ci' && (
-        <div className="space-y-2">
-          {recentRuns.map((run) => (
-            <div
-              key={run.id}
-              className="p-3 border rounded hover:bg-gray-50 cursor-pointer"
-              onClick={() => handleRunClick(run.id)}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <StatusBadge status={run.status === 'completed' ? 
-                    (run.conclusion === 'success' ? 'completed' : 'failed') : 
-                    run.status} />
-                  <span>{run.name}</span>
-                  <span className="text-sm text-gray-500">{run.branch}</span>
-                </div>
-                <div className="text-sm text-gray-500">
-                  {new Date(run.created_at).toLocaleString()}
-                </div>
-              </div>
-              {expandedRun === run.id && (
-                <div className="mt-2 pl-8 text-sm">
-                  <div>Duration: {(run.duration / 60).toFixed(1)} minutes</div>
-                  {run.test_summary && (
-                    <div>
-                      Tests: {run.test_summary.passed} passed, {run.test_summary.failed} failed
-                    </div>
-                  )}
-                  <a
-                    href={run.html_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-500 hover:underline"
-                  >
-                    View on GitHub
-                  </a>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
+        <RunList 
+          runs={recentRuns} 
+          expandedRun={expandedRun} 
+          onRunClick={handleRunClick} 
+        />
       )}
 
       {activeTab === 'security' && <SecurityTab repo={repo} />}
@@ -255,7 +171,7 @@ export function GitHubStatus({ repo, workflow, branch }: GitHubStatusProps) {
         <div className="space-y-2">
           {deploymentLoading ? (
             <div>Loading deployments...</div>
-          ) : (
+          ) : deployments && deployments.length > 0 ? (
             deployments.map((deployment) => (
               <div key={deployment.id} className="p-3 border rounded">
                 <div className="flex items-center justify-between">
@@ -271,7 +187,7 @@ export function GitHubStatus({ repo, workflow, branch }: GitHubStatusProps) {
                 </div>
               </div>
             ))
-          )}
+          ) : null}
         </div>
       )}
     </div>
