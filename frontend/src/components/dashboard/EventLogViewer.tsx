@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import * as React from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { EventLog, EventFilters, PaginationOptions } from '../../types/events';
 import eventSocketService from '../../services/eventSocketService';
 
-const EventLogViewer: React.FC = () => {
+const EventLogViewer = (): JSX.Element => {
   const [logs, setLogs] = useState<EventLog[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -25,7 +26,7 @@ const EventLogViewer: React.FC = () => {
 
   const filteredLogs = useMemo(() => {
     setIsUpdating(true);
-    const filtered = logs.filter(log => {
+    const filtered = logs.filter((log: EventLog) => {
       if (filters.contractAddress && !log.contractAddress.toLowerCase().includes(filters.contractAddress.toLowerCase())) return false;
       if (filters.eventName && !log.eventName.toLowerCase().includes(filters.eventName.toLowerCase())) return false;
       if (filters.fromAddress && !log.args.from?.toLowerCase().includes(filters.fromAddress.toLowerCase())) return false;
@@ -103,22 +104,37 @@ const EventLogViewer: React.FC = () => {
     return () => clearInterval(interval);
   }, [isLiveMode]);
 
-  const handleSubscribe = () => {
+  const handleSubscribe = async (): Promise<void> => {
     if (!contractAddress) return;
     setIsUpdating(true);
-    eventSocketService.subscribeToContract(contractAddress);
-    setContractAddress('');
-    setIsUpdating(false);
+    try {
+      await eventSocketService.connect();
+      eventSocketService.subscribeToContract(contractAddress);
+      setSubscribedContracts(prev => [...prev, contractAddress]);
+      setContractAddress('');
+    } catch (error) {
+      console.error('Subscription error:', error);
+      setError('Failed to subscribe to contract');
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
-  const handleUnsubscribe = (address: string) => {
+  const handleUnsubscribe = async (address: string): Promise<void> => {
     setIsUpdating(true);
-    eventSocketService.unsubscribeFromContract(address);
-    setSubscribedContracts(prev => prev.filter(addr => addr !== address));
-    setIsUpdating(false);
+    try {
+      await eventSocketService.connect();
+      eventSocketService.unsubscribeFromContract(address);
+      setSubscribedContracts(prev => prev.filter(addr => addr !== address));
+    } catch (error) {
+      console.error('Unsubscription error:', error);
+      setError('Failed to unsubscribe from contract');
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
-  const toggleLogExpansion = (index: number) => {
+  const toggleLogExpansion = (index: number): void => {
     const newExpanded = new Set(expandedLogs);
     if (newExpanded.has(index)) {
       newExpanded.delete(index);

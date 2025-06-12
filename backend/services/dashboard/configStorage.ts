@@ -1,24 +1,22 @@
+import type { DashboardConfig } from '../../types/dashboard';
 import fs from 'fs/promises';
 import path from 'path';
-import type { DashboardConfig } from '../../types/dashboard';
 
-const CONFIG_FILE = path.join(__dirname, 'config.json');
+const CONFIG_PATH = path.join(__dirname, '../../../config/dashboard.json');
 
-async function ensureConfigFile(): Promise<void> {
+export async function readConfig(): Promise<Partial<DashboardConfig>> {
   try {
-    await fs.access(CONFIG_FILE);
-  } catch {
-    await fs.writeFile(CONFIG_FILE, '{}');
+    const data = await fs.readFile(CONFIG_PATH, 'utf-8');
+    return JSON.parse(data);
+  } catch (error: unknown) {
+    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+      return {};
+    }
+    throw error;
   }
 }
 
-export async function readConfig(): Promise<Partial<DashboardConfig>> {
-  await ensureConfigFile();
-  const data = await fs.readFile(CONFIG_FILE, 'utf-8');
-  return JSON.parse(data);
-}
-
-export async function writeConfig(config: DashboardConfig): Promise<void> {
-  await ensureConfigFile();
-  await fs.writeFile(CONFIG_FILE, JSON.stringify(config, null, 2));
+export async function writeConfig(config: Partial<DashboardConfig>): Promise<void> {
+  await fs.mkdir(path.dirname(CONFIG_PATH), { recursive: true });
+  await fs.writeFile(CONFIG_PATH, JSON.stringify(config, null, 2));
 }

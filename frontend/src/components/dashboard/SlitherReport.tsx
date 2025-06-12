@@ -1,8 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import { StatusBadge, type Status } from './StatusBadge';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-
 interface SlitherFinding {
   id: string;
   severity: 'critical' | 'high' | 'medium' | 'low' | 'info';
@@ -58,7 +55,6 @@ export function SlitherReport({ projectId }: SlitherReportProps) {
 
   const fetchReport = useCallback(async () => {
     try {
-      // For testing markdown rendering
       const testFinding = {
         id: 'test-md',
         severity: 'info',
@@ -72,9 +68,38 @@ export function SlitherReport({ projectId }: SlitherReportProps) {
         }
       };
 
-      const response = await fetch(`/api/analysis/slither/${projectId}`);
+      const response = await fetch(`/api/dashboard/slither-report?projectId=${projectId}`, {
+        credentials: 'include'
+      });
+      
+      if (response.status === 401) {
+        setError('Authentication required. Please sign in to view security analysis.');
+        return;
+      }
+      
       const data = await response.json();
-      const findings = data.findings ? [testFinding, ...data.findings] : [testFinding];
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to fetch security analysis');
+      }
+      
+      const findings = data.data?.vulnerabilities?.map((vuln: any) => ({
+        id: `${vuln.check}_${vuln.contract}_${vuln.line}`,
+        severity: vuln.impact.toLowerCase(),
+        title: vuln.check,
+        description: vuln.description,
+        remediation: vuln.extra?.solution,
+        contract: vuln.contract,
+        location: {
+          file: vuln.contract,
+          line: vuln.line
+        },
+        confidence: vuln.confidence,
+        impact: vuln.impact,
+        extra: {
+          reference: vuln.reference,
+          solution: vuln.extra?.solution
+        }
+      })) || [testFinding];
       setFindings(findings);
       
       const stats = findings.reduce((acc: Record<string, number>, finding: SlitherFinding) => {
@@ -83,7 +108,11 @@ export function SlitherReport({ projectId }: SlitherReportProps) {
       }, { critical: 0, high: 0, medium: 0, low: 0, info: 0 });
       setSeverityStats(stats);
     } catch (err) {
-      setError('Failed to load Slither analysis');
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Failed to load Slither analysis. Please ensure the project has been analyzed.');
+      }
       console.error(err);
     } finally {
       setLoading(false);
@@ -244,9 +273,28 @@ export function SlitherReport({ projectId }: SlitherReportProps) {
                   <div className="prose prose-sm max-w-none">
                     <h5 className="font-medium">Description</h5>
                     <div className="prose prose-sm max-w-none bg-gray-50 p-3 rounded">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                        {finding.description}
-                      </ReactMarkdown>
+                    <div className="prose prose-sm max-w-none">
+                      {finding.description.split('\n').map((line, i) => (
+                        <p key={i} className="mb-2">
+                          {line.startsWith('**') && line.endsWith('**') ? (
+                            <strong>{line.slice(2, -2)}</strong>
+                          ) : line.startsWith('*') && line.endsWith('*') ? (
+                            <em>{line.slice(1, -1)}</em>
+                          ) : line.startsWith('`') && line.endsWith('`') ? (
+                            <code className="bg-gray-100 p-1 rounded text-sm">
+                              {line.slice(1, -1)}
+                            </code>
+                          ) : line.startsWith('# ') ? (
+                            <h1 className="text-xl font-bold mt-4 mb-2">{line.slice(2)}</h1>
+                          ) : line.startsWith('## ') ? (
+                            <h2 className="text-lg font-bold mt-3 mb-1">{line.slice(3)}</h2>
+                          ) : (
+                            line
+                          )}
+                        </p>
+                      ))}
+                    </div>
+
                     </div>
                     {finding.confidence && (
                       <div className="mt-2 text-sm">
@@ -263,20 +311,37 @@ export function SlitherReport({ projectId }: SlitherReportProps) {
                     <div className="p-3 bg-green-50 rounded border border-green-100">
                       <h5 className="font-medium text-green-800 mb-2">Recommended Fix</h5>
                       <div className="bg-white p-3 rounded border">
-                      <div className="relative mt-2">
-                        <div className="prose prose-sm max-w-none bg-gray-100 p-3 rounded border">
-                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                            {finding.remediation || finding.extra?.solution}
-                          </ReactMarkdown>
+                        <div className="relative mt-2">
+                          <div className="prose prose-sm max-w-none bg-gray-100 p-3 rounded border">
+                            <div className="prose prose-sm max-w-none">
+                              {finding.remediation?.split('\n').map((line, i) => (
+                                <p key={i} className="mb-2">
+                                  {line.startsWith('**') && line.endsWith('**') ? (
+                                    <strong>{line.slice(2, -2)}</strong>
+                                  ) : line.startsWith('*') && line.endsWith('*') ? (
+                                    <em>{line.slice(1, -1)}</em>
+                                  ) : line.startsWith('`') && line.endsWith('`') ? (
+                                    <code className="bg-gray-100 p-1 rounded text-sm">
+                                      {line.slice(1, -1)}
+                                    </code>
+                                  ) : line.startsWith('# ') ? (
+                                    <h1 className="text-xl font-bold mt-4 mb-2">{line.slice(2)}</h1>
+                                  ) : line.startsWith('## ') ? (
+                                    <h2 className="text-lg font-bold mt-3 mb-1">{line.slice(3)}</h2>
+                                  ) : (
+                                    line
+                                  )}
+                                </p>
+                              ))}
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => navigator.clipboard.writeText(finding.remediation || finding.extra?.solution || '')}
+                            className="absolute top-3 right-3 px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded transition-colors"
+                          >
+                            Copy
+                          </button>
                         </div>
-                        <button
-                          onClick={() => navigator.clipboard.writeText(finding.remediation || finding.extra?.solution || '')}
-                          className="absolute top-3 right-3 px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded transition-colors"
-                        >
-                          Copy
-                        </button>
-                      </div>
-
                       </div>
                     </div>
                   )}

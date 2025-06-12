@@ -23,7 +23,7 @@ const mockDeployments: Deployment[] = [
   {
     id: "2",
     environment: "staging",
-    status: "pending",
+    status: "success",
     timestamp: new Date(Date.now() - 86400000).toISOString(),
     commit: {
       hash: "e5f6g7h8",
@@ -54,6 +54,42 @@ const mockDeployments: Deployment[] = [
       branch: "bugfix-y",
       trigger: "manual",
       buildId: "build-125"
+    }
+  },
+  {
+    id: "4",
+    environment: "production",
+    status: "success",
+    timestamp: new Date(Date.now() - 259200000).toISOString(),
+    commit: {
+      hash: "m3n4o5p6",
+      message: "Performance improvements",
+      author: "devops",
+      url: "https://github.com/example/commit/m3n4o5p6"
+    },
+    duration: 110,
+    metadata: {
+      branch: "main",
+      trigger: "auto",
+      buildId: "build-126"
+    }
+  },
+  {
+    id: "5",
+    environment: "staging",
+    status: "failed",
+    timestamp: new Date(Date.now() - 345600000).toISOString(),
+    commit: {
+      hash: "q7r8s9t0",
+      message: "Update dependencies",
+      author: "system",
+      url: "https://github.com/example/commit/q7r8s9t0"
+    },
+    duration: 75,
+    metadata: {
+      branch: "main",
+      trigger: "manual",
+      buildId: "build-127"
     }
   }
 ];

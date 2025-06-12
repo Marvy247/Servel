@@ -3,6 +3,7 @@ import http from 'http';
 import { initWebSocketServer } from './services/events/websocketServer';
 import authRoutes from './routes/auth';
 import githubRoutes from './routes/github';
+import dashboardRoutes from './routes/dashboard';
 import { requireAuth } from './middleware/auth';
 import { errorHandler } from './middleware/errorHandler';
 
@@ -19,6 +20,7 @@ app.use(express.urlencoded({ extended: true }));
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/github', requireAuth, githubRoutes);
+app.use('/api/dashboard', requireAuth, dashboardRoutes);
 
 // Webhook endpoint
 app.post('/api/webhooks/github', (req, res) => {

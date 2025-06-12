@@ -1,8 +1,9 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState } from 'react'
+import React from 'react'
+
 import Web3Modal from 'web3modal'
-import { ethers, BrowserProvider } from 'ethers'
+import { BrowserProvider } from 'ethers'
 import WalletConnectProvider from '@walletconnect/web3-provider'
 
 interface Web3ContextType {
@@ -13,7 +14,7 @@ interface Web3ContextType {
   disconnect: () => Promise<void>
 }
 
-const Web3Context = createContext<Web3ContextType>({
+const Web3Context = React.createContext<Web3ContextType>({
   provider: null,
   address: null,
   chainId: null,
@@ -25,7 +26,9 @@ const providerOptions = {
   walletconnect: {
     package: WalletConnectProvider,
     options: {
-      infuraId: process.env.NEXT_PUBLIC_INFURA_ID || '',
+      rpc: {
+        11155111: 'https://methodical-misty-arm.ethereum-sepolia.quiknode.pro/94a7e73a053ca28e2f3a64e40c7ca0e0bd6d38d9/',
+      },
     },
   },
 }
@@ -37,9 +40,9 @@ const web3Modal = typeof window !== 'undefined' ? new Web3Modal({
 }) : null
 
 export function Web3Provider({ children }: { children: React.ReactNode }) {
-  const [provider, setProvider] = useState<BrowserProvider | null>(null)
-  const [address, setAddress] = useState<string | null>(null)
-  const [chainId, setChainId] = useState<number | null>(null)
+  const [provider, setProvider] = React.useState<BrowserProvider | null>(null)
+  const [address, setAddress] = React.useState<string | null>(null)
+  const [chainId, setChainId] = React.useState<number | null>(null)
 
   const connect = async () => {
     try {
@@ -78,7 +81,7 @@ export function Web3Provider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (web3Modal?.cachedProvider) {
       connect()
     }
@@ -91,4 +94,4 @@ export function Web3Provider({ children }: { children: React.ReactNode }) {
   )
 }
 
-export const useWeb3 = () => useContext(Web3Context)
+export const useWeb3 = () => React.useContext(Web3Context)
