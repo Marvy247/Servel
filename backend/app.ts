@@ -1,62 +1,54 @@
 import express from 'express';
-import cors from 'cors';
-import { verifyGitHubWebhook } from './middleware/githubWebhook';
-import apiRoutes from './routes/api';
-import dashboardRoutes from './routes/dashboard';
-import { EventListenerService } from './services/events/eventListenerService';
-import { TestResultEventService } from './services/events/testResultEventService';
+import http from 'http';
+import { initWebSocketServer } from './services/events/websocketServer';
+import authRoutes from './routes/auth';
+import githubRoutes from './routes/github';
+import { requireAuth } from './middleware/auth';
+import { errorHandler } from './middleware/errorHandler';
 
 const app = express();
+const server = http.createServer(app);
+
+// Initialize WebSocket server
+const webhookService = initWebSocketServer(server);
 
 // Middleware
-app.use(cors());
-app.use(express.json({
-  strict: true,
-  type: 'application/json'
-}));
-
-// GitHub webhook verification middleware
-const webhookSecret = process.env.GITHUB_WEBHOOK_SECRET || '';
-if (webhookSecret) {
-  app.use('/api/dashboard/github/webhook', verifyGitHubWebhook(webhookSecret));
-}
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Routes
-app.use('/api', apiRoutes);
-app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/github', requireAuth, githubRoutes);
 
-// Initialize WebSocket EventListenerService
-const providerUrl = process.env.PROVIDER_URL || 'http://localhost:8545';
-const wssPort = parseInt(process.env.WSS_PORT || '8080', 10);
-const eventListenerService = new EventListenerService(providerUrl, wssPort);
-
-// Initialize test result event handling
-const testResultEventService = new TestResultEventService(eventListenerService);
-
-const PORT = process.env.PORT || 3001;
-const server = app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log(`WebSocket server running on port ${wssPort}`);
+// Webhook endpoint
+app.post('/api/webhooks/github', (req, res) => {
+  try {
+    const event = req.headers['x-github-event'];
+    if (event === 'workflow_run') {
+      webhookService.processGitHubWebhook(req.body);
+    }
+    res.status(200).send('Webhook received');
+  } catch (error) {
+    console.error('Webhook processing error:', error);
+    res.status(500).send('Error processing webhook');
+  }
 });
 
-// Graceful shutdown
-const shutdown = () => {
-  console.log('Shutting down server...');
-  eventListenerService.close();
-  testResultEventService.clearSubscriptions();
+// Error handling
+app.use(errorHandler);
+
+// Start server
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
+
+// Cleanup on shutdown
+process.on('SIGTERM', () => {
   server.close(() => {
-    console.log('HTTP server closed.');
+    console.log('Server closed');
     process.exit(0);
   });
-};
-
-process.on('SIGINT', shutdown);
-process.on('SIGTERM', shutdown);
-
-// Error handling middleware
-app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error(err.stack);
-  res.status(500).json({ error: 'Internal Server Error' });
 });
 
-export default app;
+export { app, server };

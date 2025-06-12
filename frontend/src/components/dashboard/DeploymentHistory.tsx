@@ -59,14 +59,34 @@ export function DeploymentHistory({ projectId }: DeploymentHistoryProps) {
     const fetchFilters = async () => {
       try {
         const [envRes, branchRes] = await Promise.all([
-          fetch(`/api/deployments/${projectId}/environments`),
-          fetch(`/api/deployments/${projectId}/branches`)
+          fetch(`/api/deployments/${projectId}/environments`).catch(() => ({ ok: false, status: 500 } as Response)),
+          fetch(`/api/deployments/${projectId}/branches`).catch(() => ({ ok: false, status: 500 } as Response))
         ]);
-        setEnvironments(await envRes.json());
-        setBranches(await branchRes.json());
+
+        if (!envRes.ok || !branchRes.ok) {
+          const envStatus = 'status' in envRes ? envRes.status : 'network error';
+          const branchStatus = 'status' in branchRes ? branchRes.status : 'network error';
+          throw new Error(`Failed to fetch filter data (${envStatus}/${branchStatus})`);
+        }
+
+        const [envData, branchData] = await Promise.all([
+          'json' in envRes ? envRes.json().catch(() => []) : Promise.resolve([]),
+          'json' in branchRes ? branchRes.json().catch(() => []) : Promise.resolve([])
+        ]);
+
+        if (!Array.isArray(envData) || !Array.isArray(branchData)) {
+          throw new Error('Invalid filter data format');
+        }
+
+        setEnvironments(envData);
+        setBranches(branchData);
         setStatuses(['success', 'failed', 'pending', 'in_progress']);
       } catch (err) {
-        console.error('Failed to load filters', err);
+        const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+        console.error('Failed to load filters:', errorMessage);
+        setError(`Failed to load filters: ${errorMessage}`);
+        setEnvironments([]);
+        setBranches([]);
       }
     };
 
@@ -80,6 +100,11 @@ export function DeploymentHistory({ projectId }: DeploymentHistoryProps) {
 
         const response = await fetch(`/api/deployments/${projectId}?${params.toString()}`);
         const data = await response.json();
+        
+        if (!data.success) {
+          throw new Error(data.error || 'Failed to fetch deployments');
+        }
+
         const deployments = data.deployments || [];
         setDeployments(deployments);
         
@@ -131,8 +156,11 @@ export function DeploymentHistory({ projectId }: DeploymentHistoryProps) {
 
         setStats(stats);
       } catch (err) {
-        setError('Failed to load deployment history');
-        console.error(err);
+        const errorMessage = err instanceof Error ? err.message : 'Failed to load deployment history';
+        setError(errorMessage);
+        console.error('Deployment history error:', err);
+        setDeployments([]);
+        setStats(null);
       } finally {
         setLoading(false);
       }

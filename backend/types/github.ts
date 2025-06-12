@@ -1,75 +1,110 @@
-export interface GitHubWebhookEvent {
-  type: 'push' | 'pull_request' | 'workflow_run' | 'check_run';
-  action?: string;
-  repository: {
-    name: string;
-    owner: {
-      login: string;
+interface WorkflowRun {
+  id: number;
+  name: string;
+  run_number: number;
+  status: 'queued'|'in_progress'|'completed';
+  conclusion: 'success'|'failure'|'neutral'|'cancelled'|'timed_out'|'action_required'|'skipped'|null;
+  created_at: string;
+  updated_at: string;
+  html_url: string;
+  head_sha: string;
+  head_branch?: string;
+  head_commit?: {
+    message?: string;
+    author?: {
+      name?: string;
     };
-  };
-  sender: {
-    login: string;
-    avatar_url: string;
   };
 }
 
-export interface GitHubPushEvent extends GitHubWebhookEvent {
-  type: 'push';
-  ref: string;
-  before: string;
-  after: string;
-  commits: Array<{
-    id: string;
-    message: string;
-    timestamp: string;
-    author: {
-      name: string;
-      email: string;
-    };
+interface Job {
+  id: number;
+  run_id: number;
+  status: 'queued'|'in_progress'|'completed';
+  conclusion: 'success'|'failure'|'neutral'|'cancelled'|'timed_out'|'action_required'|'skipped'|null;
+  started_at: string;
+  completed_at: string|null;
+  name: string;
+  steps: Array<{
+    name: string;
+    status: 'queued'|'in_progress'|'completed';
+    conclusion: 'success'|'failure'|'neutral'|'cancelled'|'timed_out'|'action_required'|'skipped'|null;
+    number: number;
   }>;
 }
 
-export interface GitHubPullRequestEvent extends GitHubWebhookEvent {
-  type: 'pull_request';
-  action: 'opened' | 'closed' | 'reopened' | 'synchronize';
-  pull_request: {
-    number: number;
-    title: string;
-    body: string;
-    state: 'open' | 'closed';
-    merged: boolean;
-    head: {
-      ref: string;
-      sha: string;
-    };
-    base: {
-      ref: string;
-      sha: string;
-    };
-  };
+interface Artifact {
+  id: number;
+  name: string;
+  size_in_bytes: number;
+  archive_download_url: string;
+  expired: boolean;
+  created_at: string;
+  expires_at: string;
 }
 
-export interface GitHubWorkflowRunEvent extends GitHubWebhookEvent {
-  type: 'workflow_run';
-  action: 'completed' | 'requested' | 'in_progress';
-  workflow_run: {
-    id: number;
+interface TestResult {
+  total_count: number;
+  passed: number;
+  failed: number;
+  skipped: number;
+  suites: Array<{
     name: string;
-    status: 'completed' | 'in_progress';
-    conclusion: 'success' | 'failure' | 'cancelled' | 'skipped';
-    head_branch: string;
-    head_sha: string;
-  };
+    total_count: number;
+    passed: number;
+    failed: number;
+    skipped: number;
+  }>;
 }
 
-export interface GitHubCheckRunEvent extends GitHubWebhookEvent {
-  type: 'check_run';
-  action: 'created' | 'completed' | 'rerequested';
-  check_run: {
-    id: number;
-    name: string;
-    status: 'queued' | 'in_progress' | 'completed';
-    conclusion: 'success' | 'failure' | 'neutral' | 'cancelled' | 'skipped' | 'timed_out' | 'action_required';
-    head_sha: string;
-  };
+interface RepoStatus {
+  state: 'pending'|'success'|'failure'|'error';
+  total_count: number;
+  statuses: Array<{
+    state: 'pending'|'success'|'failure'|'error';
+    context: string;
+    description: string|null;
+    target_url: string|null;
+  }>;
 }
+
+interface GitHubError {
+  status: number;
+  message: string;
+  documentation_url?: string;
+  errors?: Array<{
+    resource: string;
+    field: string;
+    code: string;
+  }>;
+}
+
+// New stricter types with GitHub prefix
+interface GitHubWorkflowRun extends Omit<WorkflowRun, 'conclusion'> {
+  branch: string;
+  commit: {
+    id: string;
+    message: string;
+    author: string;
+  };
+  conclusion: 'success'|'failure'|'neutral'|'cancelled'|'timed_out'|'action_required'|'skipped'| 'stale' | null;
+}
+
+interface GitHubJob extends Job {}
+interface GitHubArtifact extends Artifact {}
+interface GitHubTestResult extends TestResult {}
+interface GitHubRepoStatus extends RepoStatus {}
+
+export {
+  WorkflowRun,
+  Job,
+  Artifact,
+  TestResult,
+  RepoStatus,
+  GitHubError,
+  GitHubWorkflowRun,
+  GitHubJob,
+  GitHubArtifact,
+  GitHubTestResult,
+  GitHubRepoStatus
+};

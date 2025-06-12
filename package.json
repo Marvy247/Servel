@@ -16,8 +16,10 @@
   },
   "dependencies": {
     "@octokit/rest": "^22.0.0",
+    "@types/axios": "^0.9.36",
     "@types/cors": "^2.8.19",
     "@types/winston": "^2.4.4",
+    "axios": "^1.9.0",
     "cors": "^2.8.5",
     "express-rate-limit": "^7.5.0",
     "react-markdown": "^10.1.0",

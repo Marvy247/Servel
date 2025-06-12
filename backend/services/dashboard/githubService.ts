@@ -56,15 +56,22 @@ export class GitHubService {
   }
 
   async getTestResults(runId: string): Promise<TestResult[]> {
+    if (typeof runId !== 'string') {
+      throw new Error('runId must be a string');
+    }
     const results = await this._getTestResults(runId);
     return results.map(result => ({
       ...result,
-      runId,
+      runId: String(runId),
       timestamp: new Date().toISOString()
     }));
+
   }
 
   private async _getTestResults(runId: string): Promise<TestResult[]> {
+    if (typeof runId !== 'string') {
+      throw new Error('runId must be a string');
+    }
     if (!this.repoDetails) {
       throw new Error('GitHub repository not configured');
     }
@@ -79,7 +86,7 @@ export class GitHubService {
     const artifacts = await this.octokit.rest.actions.listWorkflowRunArtifacts({
       owner,
       repo,
-      run_id: parseInt(runId)
+      run_id: Number(runId)
     });
 
     const testArtifact = artifacts.data.artifacts.find(a => 
@@ -132,7 +139,7 @@ export class GitHubService {
     // Get test results for each run
     const results = await Promise.all(
       runs.map(async run => {
-        const testResults = await this._getTestResults(run.id);
+        const testResults = await this._getTestResults(String(run.id));
         return {
           run,
           testResults
@@ -152,7 +159,7 @@ export class GitHubService {
 
     return {
       runs: results.map(({ run, testResults }) => ({
-        id: run.id,
+        id: run.id.toString(),
         timestamp: run.created_at,
         branch: run.branch,
         conclusion: run.conclusion || 'unknown',
@@ -196,7 +203,7 @@ export class GitHubService {
     const response = await this.octokit.rest.actions.listWorkflowRunArtifacts({
       owner,
       repo,
-      run_id: parseInt(runId)
+      run_id: Number(runId)
     });
 
     return response.data.artifacts.map(artifact => ({
@@ -265,7 +272,7 @@ export class GitHubService {
     const response = await this.octokit.rest.actions.listJobsForWorkflowRun({
       owner,
       repo,
-      run_id: parseInt(runId)
+      run_id: Number(runId)
     });
 
     return response.data.jobs.map(job => ({
@@ -444,8 +451,8 @@ export class GitHubService {
           name: label.name,
           color: label.color
         })) || [],
-        reviewStatus: (pr as any).review_decision === 'approved' ? 'approved' :
-                     (pr as any).review_decision === 'changes_requested' ? 'changes_requested' : 'pending',
+        reviewStatus: (pr as any).review_decision === 'approved' ? 'approved' as const :
+                     (pr as any).review_decision === 'changes_requested' ? 'changes_requested' as const : 'pending' as const,
         branchName: pr.head?.ref || '',
         baseBranch: pr.base?.ref || '',
         additions: (pr as any).additions || 0,
@@ -515,7 +522,7 @@ export class GitHubService {
     const response = await this.octokit.rest.actions.downloadArtifact({
       owner,
       repo,
-      artifact_id: parseInt(artifactId),
+      artifact_id: Number(artifactId),
       archive_format: 'zip'
     });
 
@@ -523,7 +530,7 @@ export class GitHubService {
     const artifactDetails = await this.octokit.rest.actions.getArtifact({
       owner,
       repo,
-      artifact_id: parseInt(artifactId)
+      artifact_id: Number(artifactId)
     });
 
     return {
@@ -697,7 +704,7 @@ export class GitHubService {
     await this.octokit.rest.actions.cancelWorkflowRun({
       owner,
       repo,
-      run_id: parseInt(runId)
+      run_id: Number(runId)
     });
   }
 
@@ -710,7 +717,7 @@ export class GitHubService {
     await this.octokit.rest.actions.reRunWorkflow({
       owner,
       repo,
-      run_id: parseInt(runId)
+      run_id: Number(runId)
     });
   }
 
@@ -723,7 +730,7 @@ export class GitHubService {
     const response = await this.octokit.rest.actions.downloadWorkflowRunLogs({
       owner,
       repo,
-      run_id: parseInt(runId)
+      run_id: Number(runId)
     });
 
     return response.data as unknown as string;

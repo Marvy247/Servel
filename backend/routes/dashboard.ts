@@ -1,6 +1,7 @@
 import express from 'express';
 import { getConfig, updateConfig } from '../services/dashboard/configService';
 import { getGitHubService } from '../services/dashboard/githubService';
+import { getDeployments } from '../services/dashboard/deploymentService';
 import { verifyGitHubWebhook } from '../middleware/githubWebhook';
 import deploymentRoutes from './deployment';
 import type { DashboardConfig, TestResult } from '../types/dashboard';
@@ -122,7 +123,7 @@ router.get('/test-results', async (req, res) => {
       // Get latest test results from recent workflow runs
       const status = await github.getRepoStatus();
       if (status.lastWorkflowRun) {
-        results = await github.getTestResults(status.lastWorkflowRun.id);
+        results = await github.getTestResults(status.lastWorkflowRun.id.toString());
       }
     }
 
@@ -149,7 +150,7 @@ router.get('/slither-report', async (req, res) => {
     const { runId } = req.query;
     const github = await getGitHubService();
     // Get Slither report from artifacts
-    const artifacts = await github.getWorkflowArtifacts(runId as string);
+    const artifacts = await github.getWorkflowArtifacts(runId?.toString() || '');
     const slitherArtifact = artifacts.find(a => a.name === 'slither-report');
     
     let report = {
@@ -176,6 +177,62 @@ router.get('/slither-report', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to fetch Slither report',
+      details: error instanceof Error ? error.message : String(error),
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+router.get('/metrics', async (req, res) => {
+  try {
+    const { projectId } = req.query;
+    const github = await getGitHubService();
+    // Get deployment metrics
+    const deployments = await getDeployments({
+      branch: projectId as string
+    });
+    
+    // Get coverage data
+    // Get latest coverage from test-coverage endpoint
+    const coverageRes = await github.getWorkflowArtifacts('latest');
+    const coverageArtifact = coverageRes.find(a => a.name === 'coverage');
+    let coverage = {
+      current: 0,
+      trend: 'stable' as const,
+      diff: 0
+    };
+    if (coverageArtifact) {
+      const covData = await github.parseCoverageData(coverageArtifact.id);
+      coverage.current = covData.total;
+    }
+
+    // Get security issues from slither report
+    const slitherRes = await github.getWorkflowArtifacts('latest');
+    const slitherArtifact = slitherRes.find(a => a.name === 'slither-report');
+    let issues = {
+      critical: 0,
+      total: 0,
+      resolved24h: 0
+    };
+    if (slitherArtifact) {
+      const report = await github.parseSlitherReport(slitherArtifact.id);
+      issues.critical = report.summary.high;
+      issues.total = report.summary.high + report.summary.medium + report.summary.low;
+    }
+    
+    res.json({
+      success: true,
+      data: {
+        deployments,
+        coverage,
+        issues
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch dashboard metrics',
       details: error instanceof Error ? error.message : String(error),
       timestamp: new Date().toISOString()
     });
