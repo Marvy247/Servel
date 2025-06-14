@@ -1,12 +1,55 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
+import { AuthenticatedRequest } from '../types/request';
+import type { DashboardConfig, TestResult } from '../types/dashboard';
+import { authenticate } from '../middleware/auth';
 import { getConfig, updateConfig } from '../services/dashboard/configService';
 import { getGitHubService } from '../services/dashboard/githubService';
 import { getDeployments } from '../services/dashboard/deploymentService';
 import { verifyGitHubWebhook } from '../middleware/githubWebhook';
 import deploymentRoutes from './deployment';
-import type { DashboardConfig, TestResult } from '../types/dashboard';
 
 const router = express.Router();
+
+// Public routes
+router.get('/slither-report', async (req, res) => {
+  try {
+    const { runId } = req.query;
+    const github = await getGitHubService();
+    const artifacts = await github.getWorkflowArtifacts(runId?.toString() || '');
+    const slitherArtifact = artifacts.find(a => a.name === 'slither-report');
+    
+    let report = {
+      vulnerabilities: [],
+      detectors: [],
+      summary: {
+        high: 0,
+        medium: 0,
+        low: 0,
+        informational: 0
+      }
+    };
+
+    if (slitherArtifact) {
+      report = await github.parseSlitherReport(slitherArtifact.id);
+    }
+
+    res.json({
+      success: true,
+      data: report,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch Slither report',
+      details: error instanceof Error ? error.message : String(error),
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Protected routes (require auth)
+router.use(authenticate as any);
 
 // Mount deployment routes
 router.use('/deployments', deploymentRoutes);
@@ -145,43 +188,6 @@ router.get('/test-results', async (req, res) => {
   }
 });
 
-router.get('/slither-report', async (req, res) => {
-  try {
-    const { runId } = req.query;
-    const github = await getGitHubService();
-    // Get Slither report from artifacts
-    const artifacts = await github.getWorkflowArtifacts(runId?.toString() || '');
-    const slitherArtifact = artifacts.find(a => a.name === 'slither-report');
-    
-    let report = {
-      vulnerabilities: [],
-      detectors: [],
-      summary: {
-        high: 0,
-        medium: 0,
-        low: 0,
-        informational: 0
-      }
-    };
-
-    if (slitherArtifact) {
-      report = await github.parseSlitherReport(slitherArtifact.id);
-    }
-
-    res.json({
-      success: true,
-      data: report,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch Slither report',
-      details: error instanceof Error ? error.message : String(error),
-      timestamp: new Date().toISOString()
-    });
-  }
-});
 
 router.get('/metrics', async (req, res) => {
   try {
@@ -327,6 +333,31 @@ router.get('/github/actions/:runId/artifacts/:artifactId/download', async (req, 
     res.status(500).json({
       success: false,
       error: 'Failed to download artifact',
+      details: error instanceof Error ? error.message : String(error),
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+router.get('/github/contributors', async (req: Request, res: Response) => {
+  try {
+    const github = await getGitHubService();
+    const contributors = await github.getContributors();
+    
+    return res.json({
+      success: true,
+      data: contributors.map(c => ({
+        login: c.login,
+        contributions: c.contributions,
+        avatar_url: c.avatar_url,
+        html_url: c.html_url
+      })),
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch contributors',
       details: error instanceof Error ? error.message : String(error),
       timestamp: new Date().toISOString()
     });

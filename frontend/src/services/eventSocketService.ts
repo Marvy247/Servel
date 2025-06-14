@@ -4,13 +4,18 @@ class EventSocketService {
   private socket: WebSocket | null = null;
   private subscribers: Map<string, (message: EventSocketMessage) => void> = new Map();
   private reconnectAttempts = 0;
-  private maxReconnectAttempts = 5;
+  private maxReconnectAttempts = 10;
   private reconnectDelay = 3000;
+  private connectionPromise: Promise<void> | null = null;
 
   constructor(private wssUrl: string) {}
 
   connect(): Promise<void> {
-    return new Promise((resolve, reject) => {
+    if (this.connectionPromise) {
+      return this.connectionPromise;
+    }
+
+    this.connectionPromise = new Promise((resolve, reject) => {
       if (this.socket) {
         resolve();
         return;
@@ -27,6 +32,7 @@ class EventSocketService {
       this.socket.onclose = () => {
         console.log('WebSocket disconnected');
         this.socket = null;
+        this.connectionPromise = null;
         this.attemptReconnect();
       };
 
@@ -44,6 +50,8 @@ class EventSocketService {
         }
       };
     });
+
+    return this.connectionPromise;
   }
 
   private attemptReconnect() {
@@ -95,7 +103,7 @@ class EventSocketService {
 
 // Default export with default WebSocket URL
 const eventSocketService = new EventSocketService(
-  process.env.NEXT_PUBLIC_WSS_URL || 'ws://localhost:8080'
+  process.env.NEXT_PUBLIC_WSS_URL || 'ws://localhost:3000/ws'
 );
 
 export default eventSocketService;

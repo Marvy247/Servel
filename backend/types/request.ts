@@ -1,12 +1,6 @@
 import { Request } from 'express';
+import { User } from './user';
 
 export interface AuthenticatedRequest extends Request {
-  user?: {
-    githubToken: string;
-    id: string;
-  };
-  session?: {
-    destroy: (callback: (err: Error) => void) => void;
-    [key: string]: any;
-  };
+  user?: User;
 }

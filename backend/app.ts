@@ -1,54 +1,114 @@
 import express from 'express';
 import http from 'http';
+import dotenv from 'dotenv';
+import passport from 'passport';
+import { Strategy as GitHubStrategy } from 'passport-github2';
+import session from 'express-session';
 import { initWebSocketServer } from './services/events/websocketServer';
-import authRoutes from './routes/auth';
-import githubRoutes from './routes/github';
-import dashboardRoutes from './routes/dashboard';
-import { requireAuth } from './middleware/auth';
+import authRouter from './routes/auth';
+import githubRouter from './routes/github';
+import dashboardRouter from './routes/dashboard';
+import { authenticate } from './middleware/auth';
 import { errorHandler } from './middleware/errorHandler';
+import type { GitHubUser } from './types/github';
+import './types/express';
+
+declare module 'express-session' {
+  interface SessionData {
+    passport?: {
+      user: Express.User;
+    };
+  }
+}
+
+dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
 
 // Initialize WebSocket server
-const webhookService = initWebSocketServer(server);
+initWebSocketServer(server);
 
-// Middleware
+// Session configuration
+const sessionOptions: session.SessionOptions = {
+  secret: process.env.SESSION_SECRET || 'fallback-secret',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 1000 * 60 * 60 * 24
+  }
+};
+
+// Middleware with explicit typing
+app.use(session(sessionOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/github', requireAuth, githubRoutes);
-app.use('/api/dashboard', requireAuth, dashboardRoutes);
+// Passport configuration
+passport.use(new GitHubStrategy({
+  clientID: process.env.GITHUB_CLIENT_ID || '',
+  clientSecret: process.env.GITHUB_CLIENT_SECRET || '',
+  callbackURL: process.env.GITHUB_CALLBACK_URL || 'http://localhost:3000/auth/github/callback',
+  scope: ['user:email']
+}, (accessToken: string, refreshToken: string, profile: any, done: (error: any, user?: Express.User) => void) => {
+    const user: Express.User = {
+      id: profile.id,
+      githubToken: accessToken,
+      username: profile.username,
+      displayName: profile.displayName,
+      emails: profile.emails ? [{ value: profile.emails[0]?.value }] : undefined,
+      profile: {
+        id: parseInt(profile.id),
+        login: profile.username,
+        name: profile.displayName,
+        email: profile.emails?.[0]?.value,
+        avatar_url: profile.photos?.[0]?.value,
+        html_url: profile.profileUrl
+      } as GitHubUser,
+      token: '' // Will be set by JWT service later
+    };
 
-// Webhook endpoint
-app.post('/api/webhooks/github', (req, res) => {
-  try {
-    const event = req.headers['x-github-event'];
-    if (event === 'workflow_run') {
-      webhookService.processGitHubWebhook(req.body);
-    }
-    res.status(200).send('Webhook received');
-  } catch (error) {
-    console.error('Webhook processing error:', error);
-    res.status(500).send('Error processing webhook');
+  done(null, user);
+}));
+
+passport.serializeUser<Express.User>((user, done) => done(null, user));
+passport.deserializeUser<Express.User>((user, done) => done(null, user));
+
+app.use(passport.initialize());
+app.use(passport.session());
+
+// Routes with proper typing
+const apiRouter = express.Router();
+apiRouter.use('/auth', authRouter);
+apiRouter.use('/github', authenticate({ devBypass: process.env.NODE_ENV !== 'production' }), githubRouter);
+apiRouter.use('/dashboard', dashboardRouter);
+app.use('/api', apiRouter);
+
+// GitHub webhook endpoint
+app.post('/api/webhooks/github', (req: express.Request, res: express.Response) => {
+  const event = req.headers['x-github-event'];
+  if (event === 'workflow_run') {
+    console.log('GitHub workflow_run event received');
+    return res.status(200).send('Webhook received');
   }
+  return res.status(400).send('Unsupported event type');
 });
 
-// Error handling
+// Error handler
 app.use(errorHandler);
 
 // Start server
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`✅ Server running on http://localhost:${PORT}`);
 });
 
-// Cleanup on shutdown
+// Graceful shutdown
 process.on('SIGTERM', () => {
   server.close(() => {
-    console.log('Server closed');
+    console.log('🛑 Server closed');
     process.exit(0);
   });
 });

@@ -68,6 +68,22 @@ interface RepoStatus {
   }>;
 }
 
+interface GitHubUser {
+  id: number;
+  login: string;
+  name?: string;
+  email?: string;
+  avatar_url?: string;
+  html_url?: string;
+}
+
+interface Contributor {
+  login: string;
+  contributions: number;
+  avatar_url: string;
+  html_url: string;
+}
+
 interface GitHubError {
   status: number;
   message: string;
@@ -102,6 +118,8 @@ export {
   TestResult,
   RepoStatus,
   GitHubError,
+  GitHubUser,
+  Contributor,
   GitHubWorkflowRun,
   GitHubJob,
   GitHubArtifact,

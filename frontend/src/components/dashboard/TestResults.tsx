@@ -21,6 +21,14 @@ interface TestResult {
   };
 }
 
+interface WebSocketMessage {
+  event?: {
+    results: TestResult[];
+    stats: TestStats;
+  };
+  error?: string;
+}
+
 interface TestStats {
   total: number;
   passed: number;
@@ -44,7 +52,18 @@ interface TestResultsProps {
 
 export function TestResults({ projectId }: TestResultsProps) {
   const [results, setResults] = useState<TestResult[]>([]);
-  const [stats, setStats] = useState<TestStats | null>(null);
+  const [stats, setStats] = useState<TestStats>({
+    total: 0,
+    passed: 0,
+    coverage: 0,
+    avgDuration: 0,
+    avgGasUsed: null,
+    maxGasUsed: null,
+    slitherFindings: null,
+    fuzzCoverage: null,
+    invariantViolations: null,
+    history: []
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filter, setFilter] = useState<'all' | 'passed' | 'failed'>('all');
@@ -52,16 +71,15 @@ export function TestResults({ projectId }: TestResultsProps) {
 
   const wsRef = useRef<WebSocket | null>(null);
 
-  useEffect(() => {
-    const handleResponse = async (response: Response) => {
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP error ${response.status}: ${errorText}`);
-      }
-      return response.json();
-    };
+  const handleResponse = async (response: Response) => {
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`HTTP error ${response.status}: ${errorText}`);
+    }
+    return response.json();
+  };
 
-    const fetchResults = async () => {
+  const fetchResults = async () => {
       try {
         const [testResults, coverageData] = await Promise.all([
           fetch(`/api/dashboard/test-results?projectId=${projectId}`),
@@ -97,9 +115,16 @@ export function TestResults({ projectId }: TestResultsProps) {
 
         setResults(combinedResults);
         setStats({
-          ...(resultsData.stats || {}),
+          total: resultsData.stats?.total || 0,
+          passed: resultsData.stats?.passed || 0,
           coverage: coverage?.data?.total || 0,
-          slitherFindings: resultsData.stats?.slitherFindings || 0
+          avgDuration: resultsData.stats?.avgDuration || 0,
+          avgGasUsed: resultsData.stats?.avgGasUsed || null,
+          maxGasUsed: resultsData.stats?.maxGasUsed || null,
+          slitherFindings: resultsData.stats?.slitherFindings || 0,
+          fuzzCoverage: resultsData.stats?.fuzzCoverage || null,
+          invariantViolations: resultsData.stats?.invariantViolations || null,
+          history: resultsData.stats?.history || []
         });
       } catch (error: any) {
         setError(`Failed to load test results: ${error.message}`);
@@ -110,28 +135,55 @@ export function TestResults({ projectId }: TestResultsProps) {
     };
 
     // Initialize WebSocket connection
+  useEffect(() => {
     const setupWebSocket = () => {
-      const wsUrl = `ws://${window.location.host}/ws/test-results?projectId=${projectId}`;
-      wsRef.current = new WebSocket(wsUrl);
+      try {
+        const wsUrl = `ws://${window.location.host}/ws/test-results?projectId=${projectId}`;
+        wsRef.current = new WebSocket(wsUrl);
 
-      wsRef.current.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        if (data.event) {
-          const { results, stats } = data.event;
-          setResults(results);
-          setStats(stats);
-        }
-      };
+        wsRef.current.onopen = () => {
+          console.log('WebSocket connection established');
+        };
 
-      wsRef.current.onclose = () => {
-        // Fallback to polling if WebSocket closes
-        setTimeout(setupWebSocket, 5000);
-      };
+        wsRef.current.onmessage = (event) => {
+          try {
+            const data: WebSocketMessage = JSON.parse(event.data);
+            if (data.event) {
+              const { results, stats } = data.event;
+              setResults(results);
+              setStats(stats);
+            } else if (data.error) {
+              console.error('WebSocket error:', data.error);
+              setError(data.error);
+            }
+          } catch (parseError) {
+            console.error('Failed to parse WebSocket message:', parseError);
+            setError('Invalid test data received');
+          }
+        };
+
+        wsRef.current.onerror = (error) => {
+          console.error('WebSocket error:', error);
+          // Fallback to HTTP polling
+          wsRef.current?.close();
+        };
+
+        wsRef.current.onclose = () => {
+          console.log('WebSocket disconnected - falling back to polling');
+          // Use HTTP polling with increased interval
+          setTimeout(fetchResults, 10000);
+        };
+      } catch (wsError) {
+        console.error('WebSocket initialization failed:', wsError);
+        // Fallback to HTTP polling
+        fetchResults();
+      }
     };
 
     setupWebSocket();
     fetchResults();
-    const interval = setInterval(fetchResults, 60000); // Refresh every minute
+    // Start polling with longer interval as fallback
+    const interval = setInterval(fetchResults, 300000); // Refresh every 5 minutes
     
     return () => {
       clearInterval(interval);
@@ -154,8 +206,22 @@ export function TestResults({ projectId }: TestResultsProps) {
     pending: 'pending'
   };
 
-  if (loading) return <div>Loading test results...</div>;
-  if (error) return <div className="text-red-500">{error}</div>;
+  if (loading) return <div className="p-4 text-center">Loading test results...</div>;
+  if (error) return (
+    <div className="p-4 bg-red-50 border border-red-200 rounded text-red-600">
+      {error}
+      <button 
+        onClick={() => {
+          setError('');
+          setLoading(true);
+          fetchResults();
+        }}
+        className="ml-2 px-2 py-1 bg-red-100 rounded hover:bg-red-200"
+      >
+        Retry
+      </button>
+    </div>
+  );
 
   return (
     <div className="space-y-4">

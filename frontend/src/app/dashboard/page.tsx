@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { GitHubStatus } from '../../components/dashboard/GitHubStatus'
 import { TestResults } from '../../components/dashboard/TestResults'
 import { SlitherReport } from '../../components/dashboard/SlitherReport'
+import { DeploymentChart } from '../../components/dashboard/DeploymentChart'
 import { DeploymentHistory } from '../../components/dashboard/DeploymentHistory'
 import { ContractsList } from '../../components/dashboard/ContractsList'
 import { AnalysisSummary } from '../../components/dashboard/AnalysisSummary'
@@ -102,6 +103,10 @@ export default function DashboardPage() {
         <div className="space-y-6">
           <div className="bg-white rounded-lg shadow p-6">
             <SlitherReport projectId={config.projectId} />
+          </div>
+          
+          <div className="bg-white rounded-lg shadow p-6">
+            <DeploymentChart projectId={config.projectId} />
           </div>
           
           <div className="bg-white rounded-lg shadow p-6">

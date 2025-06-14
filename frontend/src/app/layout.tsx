@@ -3,6 +3,8 @@ import { ReactNode } from 'react';
 import { GeistSans, GeistMono } from "geist/font";
 import "./globals.css";
 import { Web3Provider } from "../providers/web3";
+import { AuthProvider } from "../providers/auth";
+import Header from "../components/dashboard/Header";
 
 const geistSans = GeistSans;
 const geistMono = GeistMono;
@@ -34,7 +36,10 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <Web3Provider>
-          {children}
+          <AuthProvider>
+            <Header />
+            {children}
+          </AuthProvider>
         </Web3Provider>
       </body>
     </html>

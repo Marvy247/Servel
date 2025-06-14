@@ -1,0 +1,31 @@
+{
+  "compilerOptions": {
+    "target": "es2020",
+    "module": "commonjs",
+    "outDir": "./dist",
+    "rootDir": ".",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "moduleResolution": "node",
+    "baseUrl": ".",
+    "paths": {
+      "@backend/*": ["backend/*"],
+      "@frontend/*": ["frontend/*"]
+    },
+    "types": ["node", "express", "passport", "express-session"],
+    "typeRoots": [
+      "./node_modules/@types",
+      "./backend/types"
+    ]
+  },
+  "include": [
+    "backend/**/*",
+    "frontend/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}
