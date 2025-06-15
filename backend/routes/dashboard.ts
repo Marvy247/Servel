@@ -1,6 +1,11 @@
 import express, { Request, Response } from 'express';
 import { AuthenticatedRequest } from '../types/request';
-import type { DashboardConfig, TestResult } from '../types/dashboard';
+import type { DashboardConfig, TestResult, SlitherAnalysisResult, FullSlitherAnalysisResult, SlitherDetector } from '../types/dashboard';
+
+function isFullAnalysisResult(result: SlitherAnalysisResult): result is FullSlitherAnalysisResult {
+  return 'vulnerabilities' in result && 'detectors' in result && 'summary' in result;
+}
+
 import { authenticate } from '../middleware/auth';
 import { getConfig, updateConfig } from '../services/dashboard/configService';
 import { getGitHubService } from '../services/dashboard/githubService';
@@ -18,7 +23,16 @@ router.get('/slither-report', async (req, res) => {
     const artifacts = await github.getWorkflowArtifacts(runId?.toString() || '');
     const slitherArtifact = artifacts.find(a => a.name === 'slither-report');
     
-    let report = {
+    const defaultReport: FullSlitherAnalysisResult = {
+      success: true,
+      errors: [],
+      warnings: [],
+      informational: [],
+      lowIssues: [],
+      mediumIssues: [],
+      highIssues: [],
+      jsonReport: {},
+      markdownReport: '',
       vulnerabilities: [],
       detectors: [],
       summary: {
@@ -30,12 +44,20 @@ router.get('/slither-report', async (req, res) => {
     };
 
     if (slitherArtifact) {
-      report = await github.parseSlitherReport(slitherArtifact.id);
+      const result = await github.parseSlitherReport(slitherArtifact.id);
+      if (isFullAnalysisResult(result)) {
+        res.json({
+          success: true,
+          data: result,
+          timestamp: new Date().toISOString()
+        });
+        return;
+      }
     }
 
     res.json({
       success: true,
-      data: report,
+      data: defaultReport,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
@@ -188,7 +210,6 @@ router.get('/test-results', async (req, res) => {
   }
 });
 
-
 router.get('/metrics', async (req, res) => {
   try {
     const { projectId } = req.query;
@@ -199,7 +220,6 @@ router.get('/metrics', async (req, res) => {
     });
     
     // Get coverage data
-    // Get latest coverage from test-coverage endpoint
     const coverageRes = await github.getWorkflowArtifacts('latest');
     const coverageArtifact = coverageRes.find(a => a.name === 'coverage');
     let coverage = {
@@ -222,8 +242,10 @@ router.get('/metrics', async (req, res) => {
     };
     if (slitherArtifact) {
       const report = await github.parseSlitherReport(slitherArtifact.id);
-      issues.critical = report.summary.high;
-      issues.total = report.summary.high + report.summary.medium + report.summary.low;
+      if (isFullAnalysisResult(report)) {
+        issues.critical = report.summary.high;
+        issues.total = report.summary.high + report.summary.medium + report.summary.low;
+      }
     }
     
     res.json({

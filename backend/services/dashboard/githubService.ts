@@ -1,5 +1,7 @@
 import { Octokit } from '@octokit/rest';
 import * as crypto from 'crypto';
+import JSZip from 'jszip';
+import type { SlitherAnalysisResult } from '../../types/dashboard';
 import type { DashboardConfig, GitHubWorkflowRun, GitHubPullRequest, TestResult, CoverageData, TestResultsHistory, GitHubRepoMetadata, GitHubCommit } from '../../types/dashboard';
 import { getConfig } from './configService';
 
@@ -30,29 +32,146 @@ interface GitHubServiceCache {
   coverage?: CacheEntry<CoverageData>;
   repoMetadata?: CacheEntry<GitHubRepoMetadata>;
   commits?: CacheEntry<GitHubCommit[]>;
+  get<T>(key: string): Promise<T | undefined>;
+  set<T>(key: string, value: T, ttl: number): Promise<void>;
 }
 
 
 export class GitHubService {
-  async parseSlitherReport(artifactId: number): Promise<any> {
+  async parseSlitherReport(artifactId: number): Promise<SlitherAnalysisResult> {
     if (!this.repoDetails) {
       throw new Error('GitHub repository not configured');
     }
-    // Download the artifact zip file
+
+    // Check cache first
+    const cacheKey = `slither-report-${artifactId}`;
+    const cached = await this.cache.get<SlitherAnalysisResult>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    // Download and process artifact
     const artifactData = await this.processArtifact(artifactId);
-    // In a real implementation, extract and parse the slither report JSON from the zip
-    // Here, we mock the parsed report for demonstration
-    const mockReport = {
-      vulnerabilities: [],
-      detectors: [],
-      summary: {
-        high: 0,
-        medium: 0,
-        low: 0,
-        informational: 0
+    const report = await this.parseSlitherArtifact(artifactData);
+
+    // Cache the result for 1 hour
+    await this.cache.set(cacheKey, report, 3600);
+    return report;
+  }
+
+  private async parseSlitherArtifact(artifactData: Buffer): Promise<SlitherAnalysisResult> {
+    try {
+      // Extract JSON report from zip
+      const zip = await JSZip.loadAsync(artifactData);
+      const reportFile = Object.keys(zip.files).find(f => f.endsWith('.json'));
+      
+      if (!reportFile) {
+        throw new Error('No JSON report found in artifact');
       }
+
+      const reportContent = await zip.file(reportFile)?.async('text');
+      if (!reportContent) {
+        throw new Error('Failed to read report file');
+      }
+
+      const jsonReport = JSON.parse(reportContent);
+      return this.formatSlitherResults(jsonReport);
+    } catch (error) {
+      console.error('Failed to parse Slither artifact:', error);
+      return {
+        success: false,
+        errors: [error instanceof Error ? error.message : 'Unknown error'],
+        warnings: [],
+        informational: [],
+        lowIssues: [],
+        mediumIssues: [],
+        highIssues: [],
+        jsonReport: {},
+        markdownReport: ''
+      };
+    }
+  }
+
+  private formatSlitherResults(jsonReport: any): SlitherAnalysisResult {
+    // Categorize issues by severity
+    const errors = (jsonReport.errors || [])
+      .filter((e: any) => e.type === 'error' || e.severity === 'error')
+      .map((e: any) => e.type || e.severity || 'Unknown error');
+
+    const warnings = (jsonReport.detectors || [])
+      .filter((d: any) => d.impact === 'Optimization' || d.severity === 'warning')
+      .map((d: any) => d.check || d.description || 'Warning');
+
+    const informational = (jsonReport.detectors || [])
+      .filter((d: any) => d.impact === 'Informational' || d.severity === 'info')
+      .map((d: any) => d.check || d.description || 'Informational');
+
+    const lowIssues = (jsonReport.detectors || [])
+      .filter((d: any) => d.impact === 'Low')
+      .map((d: any) => d.check || d.description || 'Low severity issue');
+    const mediumIssues = (jsonReport.detectors || [])
+      .filter((d: any) => d.impact === 'Medium')
+      .map((d: any) => d.check || d.description || 'Medium severity issue');
+    const highIssues = (jsonReport.detectors || [])
+      .filter((d: any) => d.impact === 'High')
+      .map((d: any) => d.check || d.description || 'High severity issue');
+
+    return {
+      success: !errors.length,
+      errors,
+      warnings,
+      informational,
+      lowIssues,
+      mediumIssues,
+      highIssues,
+      vulnerabilities: [...highIssues, ...mediumIssues, ...lowIssues],
+      detectors: jsonReport.detectors || [],
+      summary: {
+        high: highIssues.length,
+        medium: mediumIssues.length,
+        low: lowIssues.length,
+        informational: informational.length
+      },
+      jsonReport,
+      markdownReport: this.generateSlitherMarkdown(jsonReport)
     };
-    return mockReport;
+  }
+
+  private generateSlitherMarkdown(report: any): string {
+    const detectors = report.detectors || [];
+    const grouped: Record<string, any[]> = {
+      High: [],
+      Medium: [],
+      Low: [],
+      Informational: []
+    };
+
+    detectors.forEach((d: any) => {
+      const severity = d.impact || 'Informational';
+      grouped[severity].push(d);
+    });
+
+    let markdown = `# Slither Analysis Report\n\n` +
+      `## Summary\n\n` +
+      `- **Findings**: ${detectors.length}\n` +
+      `- **High**: ${grouped.High.length} | ` +
+      `**Medium**: ${grouped.Medium.length} | ` +
+      `**Low**: ${grouped.Low.length} | ` +
+      `**Info**: ${grouped.Informational.length}\n\n`;
+
+    for (const [severity, findings] of Object.entries(grouped)) {
+      if (!findings.length) continue;
+      
+      markdown += `## ${severity} Severity Findings\n\n`;
+      markdown += findings.map((d: any) => {
+        return `### ${d.check}\n` +
+          `**Confidence**: ${d.confidence}\n\n` +
+          `${d.description}\n\n` +
+          (d.extra?.solution ? `#### Solution\n${d.extra.solution}\n\n` : '');
+      }).join('\n');
+    }
+
+    return markdown;
   }
 
   async getTestResults(runId: string): Promise<TestResult[]> {
@@ -228,7 +347,10 @@ export class GitHubService {
   }
   private octokit: Octokit;
   private repoDetails: { owner: string; repo: string } | null = null;
-  private cache: GitHubServiceCache = {};
+  private cache: GitHubServiceCache = {
+    get: async <T>(_key: string): Promise<T | undefined> => undefined,
+    set: async <T>(_key: string, _value: T, _ttl: number): Promise<void> => {},
+  };
 
   constructor(private config: DashboardConfig) {
     if (!process.env.GITHUB_TOKEN) {
@@ -734,6 +856,28 @@ export class GitHubService {
     });
 
     return response.data as unknown as string;
+  }
+
+  async getContributors(): Promise<Array<{
+    login: string;
+    contributions: number;
+    avatar_url: string;
+    html_url: string;
+  }>> {
+    if (!this.repoDetails) {
+      throw new Error('GitHub repository not configured');
+    }
+    const { owner, repo } = this.repoDetails;
+    const response = await this.octokit.rest.repos.listContributors({
+      owner,
+      repo
+    });
+    return response.data.map(contributor => ({
+      login: contributor.login || '',
+      contributions: contributor.contributions,
+      avatar_url: contributor.avatar_url || '',
+      html_url: contributor.html_url || ''
+    }));
   }
 }
 

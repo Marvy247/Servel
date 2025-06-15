@@ -1,4 +1,5 @@
 import express from 'express';
+import cors from 'cors';
 import http from 'http';
 import dotenv from 'dotenv';
 import passport from 'passport';
@@ -10,8 +11,9 @@ import githubRouter from './routes/github';
 import dashboardRouter from './routes/dashboard';
 import { authenticate } from './middleware/auth';
 import { errorHandler } from './middleware/errorHandler';
+import { generateToken } from './services/auth/jwtService';
 import type { GitHubUser } from './types/github';
-import './types/express';
+/// <reference path="./types/express.d.ts" />
 
 declare module 'express-session' {
   interface SessionData {
@@ -43,6 +45,12 @@ const sessionOptions: session.SessionOptions = {
 
 // Middleware with explicit typing
 app.use(session(sessionOptions));
+app.use(cors({
+  origin: ['http://localhost:3001', 'http://localhost:3000'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -50,7 +58,7 @@ app.use(express.urlencoded({ extended: true }));
 passport.use(new GitHubStrategy({
   clientID: process.env.GITHUB_CLIENT_ID || '',
   clientSecret: process.env.GITHUB_CLIENT_SECRET || '',
-  callbackURL: process.env.GITHUB_CALLBACK_URL || 'http://localhost:3000/auth/github/callback',
+  callbackURL: process.env.GITHUB_CALLBACK_URL || 'http://localhost:3000/api/auth/github/callback',
   scope: ['user:email']
 }, (accessToken: string, refreshToken: string, profile: any, done: (error: any, user?: Express.User) => void) => {
     const user: Express.User = {
@@ -67,7 +75,11 @@ passport.use(new GitHubStrategy({
         avatar_url: profile.photos?.[0]?.value,
         html_url: profile.profileUrl
       } as GitHubUser,
-      token: '' // Will be set by JWT service later
+      token: generateToken({
+        id: profile.id,
+        username: profile.username,
+        githubToken: accessToken
+      })
     };
 
   done(null, user);

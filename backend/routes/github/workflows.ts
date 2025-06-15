@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import axios from 'axios';
 import { AuthenticatedRequest } from '../../types/request';
-import { requireAuth } from '../../middleware/auth';
+import { authenticate } from '../../middleware/auth';
 import { Response } from 'express-serve-static-core';
 
 interface WorkflowRun {
@@ -37,7 +37,7 @@ interface WorkflowJob {
 const router = Router();
 
 // Get workflow runs for a repository
-router.get('/:owner/:repo/workflows', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+router.get('/:owner/:repo/workflows', authenticate(), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { owner, repo } = req.params;
     const { data } = await axios.get(
@@ -76,7 +76,7 @@ router.get('/:owner/:repo/workflows', requireAuth, async (req: AuthenticatedRequ
 });
 
 // Get workflow run jobs
-router.get('/:owner/:repo/runs/:run_id/jobs', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+router.get('/:owner/:repo/runs/:run_id/jobs', authenticate(), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { owner, repo, run_id } = req.params;
     const { data } = await axios.get(
@@ -112,7 +112,7 @@ router.get('/:owner/:repo/runs/:run_id/jobs', requireAuth, async (req: Authentic
 });
 
 // Rerun a workflow
-router.post('/:owner/:repo/runs/:run_id/rerun', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+router.post('/:owner/:repo/runs/:run_id/rerun', authenticate(), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { owner, repo, run_id } = req.params;
     await axios.post(
@@ -140,7 +140,7 @@ router.post('/:owner/:repo/runs/:run_id/rerun', requireAuth, async (req: Authent
 });
 
 // Get workflow artifacts
-router.get('/:owner/:repo/runs/:run_id/artifacts', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+router.get('/:owner/:repo/runs/:run_id/artifacts', authenticate(), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { owner, repo, run_id } = req.params;
     const { data } = await axios.get(

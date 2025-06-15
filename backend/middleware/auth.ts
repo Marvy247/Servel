@@ -1,6 +1,25 @@
 import { Response, NextFunction } from 'express'
 import { AuthenticatedRequest } from '../types/request'
+import { User } from '../types/user'
 import logger from '../utils/logger'
+
+declare global {
+  namespace Express {
+    interface User {
+      id: string;
+      githubToken: string;
+      username: string;
+      displayName?: string;
+      emails?: Array<{ value: string }>;
+      profile: any;
+      token: string;
+    }
+  }
+}
+
+function isCustomUser(user: Express.User | undefined): user is User {
+  return !!user && 'id' in user && 'githubToken' in user
+}
 
 /**
  * Authentication middleware with enhanced features:
@@ -32,13 +51,22 @@ export function authenticate(
     }
 
     // Type-safe user access
-    const user = (req as AuthenticatedRequest).user
-    if (user) {
-      logger.debug('Authenticated request', {
+    if (!isCustomUser(req.user)) {
+      logger.warn('Invalid user type in authenticated request', {
         path: req.path,
-        userId: user.id
+        ip: req.ip
+      })
+      return res.status(401).json({ 
+        success: false,
+        message: 'Unauthorized',
+        code: 'UNAUTHORIZED'
       })
     }
+
+    logger.debug('Authenticated request', {
+      path: req.path,
+      userId: req.user.id
+    })
 
     next()
   }

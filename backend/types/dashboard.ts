@@ -144,6 +144,47 @@ export interface CoverageData {
   branches: number;
 }
 
+export interface SlitherDetector {
+  check: string;
+  impact: string;
+  confidence: string;
+  description: string;
+  extra?: {
+    solution?: string;
+    reference?: string;
+    lines?: number[];
+    file?: string;
+    contract?: string;
+    function?: string;
+    variables?: string[];
+  };
+}
+
+export interface BaseSlitherAnalysisResult {
+  success: boolean;
+  errors: string[];
+  warnings: string[];
+  informational: string[];
+  lowIssues: string[];
+  mediumIssues: string[];
+  highIssues: string[];
+  jsonReport: Record<string, any>;
+  markdownReport: string;
+}
+
+export interface FullSlitherAnalysisResult extends BaseSlitherAnalysisResult {
+  vulnerabilities: string[];
+  detectors: SlitherDetector[];
+  summary: {
+    high: number;
+    medium: number;
+    low: number;
+    informational: number;
+  };
+}
+
+export type SlitherAnalysisResult = BaseSlitherAnalysisResult | FullSlitherAnalysisResult;
+
 export interface DashboardConfig {
   projectId: string;
   githubRepo: string;

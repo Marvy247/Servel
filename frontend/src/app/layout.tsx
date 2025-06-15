@@ -38,7 +38,9 @@ export default function RootLayout({
         <Web3Provider>
           <AuthProvider>
             <Header />
-            {children}
+            <main className="min-h-[calc(100vh-64px)]">
+              {children}
+            </main>
           </AuthProvider>
         </Web3Provider>
       </body>
