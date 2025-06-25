@@ -223,12 +223,21 @@ export class GitHubService {
   private repoDetails: { owner: string; repo: string } | null = null;
   private cache: GitHubServiceCache = {};
 
+  private demoMode: boolean;
+  
   constructor(private config: DashboardConfig) {
-    if (!process.env.GITHUB_TOKEN) {
-      throw new Error('GitHub token not configured');
-    }
-    this.octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
+    this.demoMode = !process.env.GITHUB_TOKEN;
+    this.octokit = this.demoMode 
+      ? new Octokit() 
+      : new Octokit({ auth: process.env.GITHUB_TOKEN });
     this.parseRepoUrl();
+    
+    if (this.demoMode && !this.repoDetails) {
+      this.repoDetails = {
+        owner: 'demo',
+        repo: 'project'
+      };
+    }
   }
 
   private parseRepoUrl() {
@@ -445,7 +454,7 @@ export class GitHubService {
           color: label.color
         })) || [],
         reviewStatus: (pr as any).review_decision === 'approved' ? 'approved' :
-                     (pr as any).review_decision === 'changes_requested' ? 'changes_requested' : 'pending',
+                     (pr as any).review_decision === 'changes_requested' ? 'changes_requested' : 'pending' as 'pending' | 'approved' | 'changes_requested',
         branchName: pr.head?.ref || '',
         baseBranch: pr.base?.ref || '',
         additions: (pr as any).additions || 0,
@@ -575,6 +584,34 @@ export class GitHubService {
     // Clear cache when check runs complete
     if (payload.action === 'completed') {
       this.cache.repoStatus = undefined;
+    }
+  }
+
+  async handleWebhookEvent(payload: any): Promise<void> {
+    if (!payload) return;
+
+    // Check event type from payload headers or body
+    const eventType = payload.headers?.['X-GitHub-Event'] || 
+                     payload['X-GitHub-Event'] || 
+                     payload.event;
+
+    switch (eventType) {
+        case 'workflow_run':
+            await this.handleWorkflowRunEvent(payload);
+            break;
+        case 'push':
+            await this.handlePushEvent(payload);
+            break;
+        case 'pull_request':
+            await this.handlePullRequestEvent(payload);
+            break;
+        case 'check_run':
+            await this.handleCheckRunEvent(payload);
+            break;
+        default:
+            // For unhandled event types, clear all caches to be safe
+            this.cache = {};
+            break;
     }
   }
 

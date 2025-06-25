@@ -1,6 +1,6 @@
 import type { DashboardConfig } from '../../types/dashboard';
 import { validateGitHubRepoUrl, validateRefreshInterval } from '../../utils/validators';
-import { readConfig, writeConfig } from './configStorage.js';
+import { readConfig, writeConfig } from './configStorage';
 
 const defaultConfig: DashboardConfig = {
   projectId: '',

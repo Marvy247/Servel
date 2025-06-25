@@ -4,7 +4,7 @@
   "description": "Backend services for Servel - Web3 DevInfra-as-a-Service",
   "main": "index.js",
   "scripts": {
-    "start": "ts-node src/index.ts",
+    "start": "ts-node app.ts",
     "build": "tsc",
     "test": "jest",
     "test:watch": "jest --watch"
