@@ -2,6 +2,7 @@ import express from 'express';
 import { getGitHubService } from '../services/dashboard/githubService';
 import { verifyGitHubWebhook } from '../middleware/webhookVerification';
 import { githubWebhookLimiter } from '../middleware/rateLimiter';
+import quickActionsRoutes from './quickActions';
 
 const router = express.Router();
 
@@ -9,6 +10,8 @@ const router = express.Router();
 router.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
+
+router.use('/dashboard/quick-actions', quickActionsRoutes);
 
 // GitHub webhook endpoint
 router.post(

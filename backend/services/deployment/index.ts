@@ -1,11 +1,11 @@
 import { ethers } from 'ethers';
-import { ArtifactScanner } from '@services/deployment/artifactScanner';
-import { VerificationService } from '@services/deployment/verificationService';
-import { DeploymentTracker } from '@services/deployment/deploymentTracker';
+import { ArtifactScanner } from './artifactScanner';
+import { VerificationService } from './verificationService';
+import { DeploymentTracker } from './deploymentTracker';
 
-export * from '@services/deployment/artifactScanner';
-export * from '@services/deployment/verificationService';
-export * from '@services/deployment/deploymentTracker';
+export * from './artifactScanner';
+export * from './verificationService';
+export * from './deploymentTracker';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -60,11 +60,26 @@ export class DeploymentService {
       // Use Anvil default private key if PRIVATE_KEY env var is not set
       const privateKey = process.env.PRIVATE_KEY || '0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d';
       const wallet = new ethers.Wallet(privateKey, provider);
+
+      const balance = await provider.getBalance(wallet.address);
+      console.log(`Wallet address: ${await wallet.getAddress()}, balance: ${balance.toString()}`);
+
+      if (balance === 0n) {
+        throw new Error('Wallet balance is zero. Please fund the wallet to deploy contracts.');
+      }
+
       const factory = new ethers.ContractFactory(artifact.abi, artifact.bytecode, wallet);
       
       console.log(`Deploying ${artifact.contractName} to ${network.name}...`);
       const contract = await factory.deploy();
-      await contract.waitForDeployment();
+      console.log('Contract deployment transaction sent, waiting for deployment...');
+      try {
+        await contract.waitForDeployment();
+        console.log('Contract deployed successfully at address:', await contract.getAddress());
+      } catch (waitError) {
+        console.error('Error while waiting for contract deployment:', waitError);
+        throw waitError;
+      }
 
       return {
         contractName: artifact.contractName,

@@ -4,7 +4,9 @@ import { verifyGitHubWebhook } from './middleware/githubWebhook';
 import apiRoutes from './routes/api';
 import dashboardRoutes from './routes/dashboard';
 import { EventListenerService } from './services/events/eventListenerService';
+
 import { TestResultEventService } from './services/events/testResultEventService';
+import quickActionsRoutes from './routes/quickActions';
 
 const app = express();
 
@@ -24,6 +26,8 @@ if (webhookSecret) {
 // Routes
 app.use('/api', apiRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/quickActions', quickActionsRoutes);
+
 
 // Initialize WebSocket EventListenerService
 const providerUrl = process.env.PROVIDER_URL || 'http://localhost:8545';
