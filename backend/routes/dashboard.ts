@@ -4,11 +4,15 @@ import { getGitHubService } from '../services/dashboard/githubService';
 import { verifyGitHubWebhook } from '../middleware/githubWebhook';
 import deploymentRoutes from './deployment';
 import type { DashboardConfig, TestResult } from '../types/dashboard';
+import { getNetworkStatus } from '../services/dashboard/networkStatusService';
+import { getGasUsageStats } from '../services/dashboard/gasUsageService';
 
 const router = express.Router();
 
 // Mount deployment routes
 router.use('/deployments', deploymentRoutes);
+import quickActionsRoutes from './quickActions';
+router.use('/quick-actions', quickActionsRoutes);
 
 router.get('/config', async (req, res) => {
   try {
@@ -22,6 +26,44 @@ router.get('/config', async (req, res) => {
     res.status(500).json({ 
       success: false,
       error: 'Failed to load dashboard configuration',
+      details: error instanceof Error ? error.message : String(error),
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// New network status endpoint
+router.get('/network-status', async (req, res) => {
+  try {
+    const statuses = await getNetworkStatus();
+    res.json({
+      success: true,
+      data: statuses,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch network status',
+      details: error instanceof Error ? error.message : String(error),
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// New gas usage endpoint
+router.get('/gas-usage', async (req, res) => {
+  try {
+    const stats = await getGasUsageStats();
+    res.json({
+      success: true,
+      data: stats,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch gas usage stats',
       details: error instanceof Error ? error.message : String(error),
       timestamp: new Date().toISOString()
     });

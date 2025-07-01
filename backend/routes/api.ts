@@ -27,4 +27,21 @@ router.post(
   }
 );
 
+// Mock verified contracts endpoint
+router.get('/verified-contracts', (req, res) => {
+  const mockContracts = [
+    {
+      address: '0x1234567890abcdef1234567890abcdef12345678',
+      name: 'MockContract1',
+      abi: []
+    },
+    {
+      address: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
+      name: 'MockContract2',
+      abi: []
+    }
+  ];
+  res.json(mockContracts);
+});
+
 export default router;

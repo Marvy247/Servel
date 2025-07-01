@@ -3,7 +3,7 @@
 
 ### ✅ Initial Setup
     - [x] Initialize project structure:
-  - `mkdir -p {backend,frontend,devops,contracts,scripts}`
+  - [x] `mkdir -p {backend,frontend,devops,contracts,scripts}`
   - [x] `npm init -y` (root)
   - [x] `npm init -y` (frontend)
   - [x] `forge init contracts` (Foundry setup)
@@ -49,14 +49,14 @@
   - [x] Account/chain state management
   - [x] Network switching
   - [x] WalletDropdown component
-- [ ] Developer portal:
-  - Project overview (deployments, tests, analysis)
-  - Contract interaction playground
-  - Event log viewer
-- [ ] CI/CD status:
-  - GitHub Actions integration
-  - Test/analysis result visualization
-  - Deployment history
+- [x] Developer portal:
+  - [x] Project overview (deployments, tests, analysis)
+  - [x] Contract interaction playground
+  - [x] Event log viewer
+- [x] CI/CD status:
+  - [x] GitHub Actions integration
+  - [x] Test/analysis result visualization
+  - [x] Deployment history
 - [ ] Network switcher (Sepolia/Anvil)
 
 ### 🐳 DevOps & Infrastructure
@@ -100,3 +100,5 @@
 - Team collaboration features
 - Advanced analytics
 - Gas optimization suggestions
+
+npx https://github.com/google-gemini/gemini-cli

@@ -55,20 +55,30 @@ export class DeploymentService {
   }
 
   public async deployContract(artifact: any, network: {name: string, rpcUrl: string}) {
-    const provider = new ethers.JsonRpcProvider(network.rpcUrl);
-    const wallet = new ethers.Wallet(process.env.PRIVATE_KEY!, provider);
-    const factory = new ethers.ContractFactory(artifact.abi, artifact.bytecode, wallet);
-    
-    console.log(`Deploying ${artifact.contractName} to ${network.name}...`);
-    const contract = await factory.deploy();
-    await contract.waitForDeployment();
+    try {
+      const provider = new ethers.JsonRpcProvider(network.rpcUrl);
+      // Use Anvil default private key if PRIVATE_KEY env var is not set
+      const privateKey = process.env.PRIVATE_KEY || '0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d';
+      const wallet = new ethers.Wallet(privateKey, provider);
+      const factory = new ethers.ContractFactory(artifact.abi, artifact.bytecode, wallet);
+      
+      console.log(`Deploying ${artifact.contractName} to ${network.name}...`);
+      const contract = await factory.deploy();
+      await contract.waitForDeployment();
 
-    return {
-      contractName: artifact.contractName,
-      address: await contract.getAddress(),
-      network: network.name,
-      txHash: contract.deploymentTransaction()?.hash,
-      timestamp: new Date().toISOString()
-    };
+      return {
+        contractName: artifact.contractName,
+        address: await contract.getAddress(),
+        network: network.name,
+        txHash: contract.deploymentTransaction()?.hash,
+        timestamp: new Date().toISOString()
+      };
+    } catch (error) {
+      console.error('Error in deployContract:', error);
+      if (error instanceof Error) {
+        console.error(error.stack);
+      }
+      throw error;
+    }
   }
 }
