@@ -2,6 +2,10 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import type { Status } from './StatusBadge';
+import { StatusBadge } from './StatusBadge';
+import WalletDropdown from './WalletDropdown';
+
 // Simple SVG icons to replace Heroicons
 const MenuIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -17,6 +21,7 @@ const CloseIcon = () => (
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [ciStatus, setCiStatus] = useState<Status>('running' as Status);
 
   const navLinks = [
     { name: 'Dashboard', href: '/dashboard' },
@@ -36,7 +41,7 @@ export default function Header() {
           </div>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:block">
+          <nav className="hidden md:flex items-center space-x-4">
             <div className="flex space-x-4">
               {navLinks.map((link) => (
                 <Link
@@ -48,6 +53,8 @@ export default function Header() {
                 </Link>
               ))}
             </div>
+            <StatusBadge status={ciStatus} />
+            <WalletDropdown />
           </nav>
 
           {/* Mobile menu button */}
@@ -81,6 +88,10 @@ export default function Header() {
                 {link.name}
               </Link>
             ))}
+            <div className="px-3 py-2">
+              <StatusBadge status={ciStatus} />
+              <WalletDropdown />
+            </div>
           </div>
         </div>
       )}

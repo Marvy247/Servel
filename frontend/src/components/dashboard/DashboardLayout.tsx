@@ -4,11 +4,24 @@ import EventLogViewer from './EventLogViewer';
 import QuickActions from './QuickActions';
 import NetworkStatus from './NetworkStatus';
 import GasUsage from './GasUsage';
+import { DeploymentHistory } from './DeploymentHistory';
+import { FailureTrendChart } from './FailureTrendChart';
+import { GitHubStatus } from './GitHubStatus';
+import MetricsCard from './MetricsCard';
+import { SlitherReport } from './SlitherReport';
+import { TestingSummary } from './TestingSummary';
+import { TestResults } from './TestResults';
+import { ContractsList } from './ContractsList';
 
 const DashboardLayout: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'interaction' | 'events' | 'monitor'>('interaction');
+  const [activeTab, setActiveTab] = useState<'interaction' | 'events' | 'monitor' | 'testing' | 'contracts'>('interaction');
   const [ciStatus, setCiStatus] = useState<'success' | 'failed' | 'running'>('running');
   const [network, setNetwork] = useState<'sepolia' | 'anvil'>('sepolia');
+
+  // Mock sample data for required props
+  const sampleProjectId = 'project-123';
+  const sampleRepo = 'user/repo';
+  const sampleData = [{ date: '2023-01-01', count: 10 }, { date: '2023-01-02', count: 15 }];
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 p-4">
@@ -102,6 +115,26 @@ const DashboardLayout: React.FC = () => {
           >
             Monitor
           </button>
+          <button
+            className={`px-4 py-2 font-medium text-sm focus:outline-none ${
+              activeTab === 'testing' 
+                ? 'border-b-2 border-blue-500 text-blue-600 dark:text-blue-400' 
+                : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+            }`}
+            onClick={() => setActiveTab('testing')}
+          >
+            Testing & Analysis
+          </button>
+          <button
+            className={`px-4 py-2 font-medium text-sm focus:outline-none ${
+              activeTab === 'contracts' 
+                ? 'border-b-2 border-blue-500 text-blue-600 dark:text-blue-400' 
+                : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+            }`}
+            onClick={() => setActiveTab('contracts')}
+          >
+            Contracts
+          </button>
         </div>
 
         {/* Tab Content */}
@@ -110,7 +143,7 @@ const DashboardLayout: React.FC = () => {
             <ContractInteraction />
           ) : activeTab === 'events' ? (
             <EventLogViewer />
-          ) : (
+          ) : activeTab === 'monitor' ? (
             <div className="p-4 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
@@ -123,25 +156,40 @@ const DashboardLayout: React.FC = () => {
                   <GasUsage />
                 </div>
               </div>
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
-                <h3 className="font-medium mb-2">Contract Health</h3>
-                <div className="space-y-2">
-                  <div className="flex items-center">
-                    <div className="w-2 h-2 rounded-full bg-green-500 mr-2"></div>
-                    <span className="text-sm">Security: Excellent</span>
-                  </div>
-                  <div className="flex items-center">
-                    <div className="w-2 h-2 rounded-full bg-yellow-500 mr-2"></div>
-                    <span className="text-sm">Gas Usage: Moderate</span>
-                  </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+                  <DeploymentHistory projectId={sampleProjectId} />
+                </div>
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+                  <FailureTrendChart data={sampleData} />
                 </div>
               </div>
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
-                <h3 className="font-medium mb-2">Recent Transactions</h3>
-                <EventLogViewer />
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+                  <GitHubStatus repo={sampleRepo} />
+                </div>
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+                  <MetricsCard title="Sample Title" stats={[]} />
+                </div>
               </div>
             </div>
-          )}
+          ) : activeTab === 'testing' ? (
+            <div className="p-4 space-y-4">
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+                <SlitherReport projectId={sampleProjectId} />
+              </div>
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+                <TestingSummary projectId={sampleProjectId} />
+              </div>
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+                <TestResults projectId={sampleProjectId} />
+              </div>
+            </div>
+          ) : activeTab === 'contracts' ? (
+            <div className="p-4">
+              <ContractsList projectId={sampleProjectId} />
+            </div>
+          ) : null}
         </div>
       </div>
     </div>
