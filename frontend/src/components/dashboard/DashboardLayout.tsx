@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { FaCogs, FaListAlt, FaChartLine, FaClipboardList, FaFileContract } from 'react-icons/fa';
 import ContractInteraction from './ContractInteraction';
 import EventLogViewer from './EventLogViewer';
 import QuickActions from './QuickActions';
@@ -86,54 +87,59 @@ const DashboardLayout: React.FC = () => {
         {/* Tab Navigation */}
         <div className="flex border-b border-gray-200 dark:border-gray-700">
           <button
-            className={`px-4 py-2 font-medium text-sm focus:outline-none ${
+            className={`px-4 py-2 font-medium text-sm flex items-center space-x-2 focus:outline-none ${
               activeTab === 'interaction' 
                 ? 'border-b-2 border-blue-500 text-blue-600 dark:text-blue-400' 
                 : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
             }`}
             onClick={() => setActiveTab('interaction')}
           >
-            Contract Interaction
+            <FaCogs />
+            <span>Contract Interaction</span>
           </button>
           <button
-            className={`px-4 py-2 font-medium text-sm focus:outline-none ${
+            className={`px-4 py-2 font-medium text-sm flex items-center space-x-2 focus:outline-none ${
               activeTab === 'events' 
                 ? 'border-b-2 border-blue-500 text-blue-600 dark:text-blue-400' 
                 : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
             }`}
             onClick={() => setActiveTab('events')}
           >
-            Event Logs
+            <FaListAlt />
+            <span>Event Logs</span>
           </button>
           <button
-            className={`px-4 py-2 font-medium text-sm focus:outline-none ${
+            className={`px-4 py-2 font-medium text-sm flex items-center space-x-2 focus:outline-none ${
               activeTab === 'monitor' 
                 ? 'border-b-2 border-blue-500 text-blue-600 dark:text-blue-400' 
                 : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
             }`}
             onClick={() => setActiveTab('monitor')}
           >
-            Monitor
+            <FaChartLine />
+            <span>Monitor</span>
           </button>
           <button
-            className={`px-4 py-2 font-medium text-sm focus:outline-none ${
+            className={`px-4 py-2 font-medium text-sm flex items-center space-x-2 focus:outline-none ${
               activeTab === 'testing' 
                 ? 'border-b-2 border-blue-500 text-blue-600 dark:text-blue-400' 
                 : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
             }`}
             onClick={() => setActiveTab('testing')}
           >
-            Testing & Analysis
+            <FaClipboardList />
+            <span>Testing & Analysis</span>
           </button>
           <button
-            className={`px-4 py-2 font-medium text-sm focus:outline-none ${
+            className={`px-4 py-2 font-medium text-sm flex items-center space-x-2 focus:outline-none ${
               activeTab === 'contracts' 
                 ? 'border-b-2 border-blue-500 text-blue-600 dark:text-blue-400' 
                 : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
             }`}
             onClick={() => setActiveTab('contracts')}
           >
-            Contracts
+            <FaFileContract />
+            <span>Contracts</span>
           </button>
         </div>
 

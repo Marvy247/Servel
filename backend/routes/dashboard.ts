@@ -279,7 +279,7 @@ router.get('/test-coverage', async (req, res) => {
       details: error instanceof Error ? error.message : String(error),
       timestamp: new Date().toISOString()
     });
-  }
+    }
 });
 
 router.post('/github/webhook', verifyGitHubWebhook(process.env.GITHUB_WEBHOOK_SECRET || ''), async (req, res) => {

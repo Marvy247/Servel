@@ -106,14 +106,22 @@ const EventLogViewer: React.FC = () => {
   const handleSubscribe = () => {
     if (!contractAddress) return;
     setIsUpdating(true);
-    eventSocketService.subscribeToContract(contractAddress);
+    if (typeof eventSocketService.subscribe === 'function') {
+      eventSocketService.subscribe(contractAddress, (message) => {
+        // Handle the incoming event message here if needed
+        // For example, you could update logs or set state
+        // setLogs(prev => [message, ...prev]);
+      });
+    }
     setContractAddress('');
     setIsUpdating(false);
   };
 
   const handleUnsubscribe = (address: string) => {
     setIsUpdating(true);
-    eventSocketService.unsubscribeFromContract(address);
+    if (typeof eventSocketService.unsubscribe === 'function') {
+      eventSocketService.unsubscribe(address);
+    }
     setSubscribedContracts(prev => prev.filter(addr => addr !== address));
     setIsUpdating(false);
   };
@@ -143,21 +151,21 @@ const EventLogViewer: React.FC = () => {
 
       {/* Mode Toggle */}
 <div className="flex items-center gap-4 mb-6">
-  <label className="flex items-center gap-3 cursor-pointer select-none">
-    <span className="text-sm font-medium text-gray-100">
-      {isLiveMode ? 'Live Mode' : 'Historical Mode'}
-    </span>
-    <div className="relative">
-      <input
-        type="checkbox"
-        checked={isLiveMode}
-        onChange={(e) => setIsLiveMode(e.target.checked)}
-        className="sr-only peer"
-      />
-      <div className="w-11 h-6 bg-gray-300 rounded-full peer-checked:bg-blue-600 transition-colors duration-300"></div>
-      <div className="absolute top-0.5 left-0.5 h-5 w-5 bg-white rounded-full shadow-md transform transition-transform duration-300 peer-checked:translate-x-5"></div>
-    </div>
-  </label>
+      <label className="flex items-center gap-3 cursor-pointer select-none">
+        <span className="text-sm font-medium text-gray-100">
+          {isLiveMode ? 'Live Mode' : 'Historical Mode'}
+        </span>
+        <div className="relative">
+          <input
+            type="checkbox"
+            checked={isLiveMode}
+            onChange={(e) => setIsLiveMode(e.target.checked)}
+            className="sr-only peer focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
+          />
+          <div className="w-11 h-6 bg-gray-300 rounded-full peer-checked:bg-blue-600 transition-colors duration-300"></div>
+          <div className="absolute top-0.5 left-0.5 h-5 w-5 bg-white rounded-full shadow-md transform transition-transform duration-300 peer-checked:translate-x-5"></div>
+        </div>
+      </label>
 
   {isUpdating && (
     <div className="text-sm text-gray-500 flex items-center gap-2">
@@ -220,11 +228,12 @@ const EventLogViewer: React.FC = () => {
           value={contractAddress}
           onChange={(e) => setContractAddress(e.target.value)}
           placeholder="Enter contract address"
-          className="flex-1 p-2 border border-gray-300 rounded"
+          className="flex-1 p-2 border border-gray-300 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
         />
-        <button 
+      <button 
           onClick={handleSubscribe}
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors w-full sm:w-auto"
+          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 transition-colors w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={isUpdating}
         >
           {isUpdating ? 'Subscribing...' : 'Subscribe'}
         </button>

@@ -1,8 +1,8 @@
-import { EventMessage } from '../types/events';
+import { EventSocketMessage } from '../types/events';
 
 class EventSocketService {
   private socket: WebSocket | null = null;
-  private subscribers: Map<string, (message: EventMessage) => void> = new Map();
+  private subscribers: Map<string, (message: EventSocketMessage) => void> = new Map();
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
   private reconnectDelay = 3000;
@@ -37,7 +37,7 @@ class EventSocketService {
 
       this.socket.onmessage = (event) => {
         try {
-          const message: EventMessage = JSON.parse(event.data);
+          const message: EventSocketMessage = JSON.parse(event.data);
           this.subscribers.forEach((callback) => callback(message));
         } catch (error) {
           console.error('Error parsing WebSocket message:', error);
@@ -54,7 +54,7 @@ class EventSocketService {
     }
   }
 
-  subscribe(eventType: string, callback: (message: EventMessage) => void): string {
+  subscribe(eventType: string, callback: (message: EventSocketMessage) => void): string {
     const subscriptionId = crypto.randomUUID();
     this.subscribers.set(subscriptionId, callback);
     return subscriptionId;

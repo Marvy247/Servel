@@ -256,7 +256,7 @@ export default function ContractInteraction() {
             required
           >
             <option value="">Select a contract</option>
-            {contracts.map((contract) => (
+            {(Array.isArray(contracts) ? contracts : []).map((contract) => (
               <option key={contract.address} value={contract.address}>
                 {contract.name} ({contract.address.slice(0, 6)}...)
               </option>

@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { StatusBadge, type Status } from './StatusBadge';
 import ReactMarkdown from 'react-markdown';
+
+const ReactMarkdownAny = ReactMarkdown as unknown as React.FC<any>;
 import remarkGfm from 'remark-gfm';
 
 interface SlitherFinding {
@@ -136,31 +138,31 @@ export function SlitherReport({ projectId }: SlitherReportProps) {
         <div className="flex space-x-2">
           <button
             onClick={() => setFilter('all')}
-            className={`px-3 py-1 text-sm rounded ${filter === 'all' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100'}`}
+          className={`px-3 py-1 text-sm rounded ${filter === 'all' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100'}`}
           >
             All
           </button>
           <button
             onClick={() => setFilter('critical')}
-            className={`px-3 py-1 text-sm rounded ${filter === 'critical' ? 'bg-red-100 text-red-800' : 'bg-gray-100'}`}
+            className={`px-3 py-1 text-sm rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-600 ${filter === 'critical' ? 'bg-red-100 text-red-800' : 'bg-gray-100'}`}
           >
             Critical
           </button>
           <button
             onClick={() => setFilter('high')}
-            className={`px-3 py-1 text-sm rounded ${filter === 'high' ? 'bg-orange-100 text-orange-800' : 'bg-gray-100'}`}
+            className={`px-3 py-1 text-sm rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-orange-600 ${filter === 'high' ? 'bg-orange-100 text-orange-800' : 'bg-gray-100'}`}
           >
             High
           </button>
           <button
             onClick={() => setFilter('medium')}
-            className={`px-3 py-1 text-sm rounded ${filter === 'medium' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100'}`}
+            className={`px-3 py-1 text-sm rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-yellow-600 ${filter === 'medium' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100'}`}
           >
             Medium
           </button>
           <button
             onClick={() => setFilter('low')}
-            className={`px-3 py-1 text-sm rounded ${filter === 'low' ? 'bg-gray-100 text-gray-800' : 'bg-gray-100'}`}
+            className={`px-3 py-1 text-sm rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-gray-600 ${filter === 'low' ? 'bg-gray-100 text-gray-800' : 'bg-gray-100'}`}
           >
             Low
           </button>
@@ -194,7 +196,7 @@ export function SlitherReport({ projectId }: SlitherReportProps) {
             {Object.entries(severityStats).map(([severity, count]) => (
               <div 
                 key={severity} 
-                className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                className={`p-4 border rounded-lg cursor-pointer transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 ${
                   filter === severity ? 'bg-gray-100' : 'hover:bg-gray-50'
                 }`}
                 onClick={() => setFilter(severity as any)}
@@ -244,9 +246,9 @@ export function SlitherReport({ projectId }: SlitherReportProps) {
                   <div className="prose prose-sm max-w-none">
                     <h5 className="font-medium">Description</h5>
                     <div className="prose prose-sm max-w-none bg-gray-50 p-3 rounded">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      <ReactMarkdownAny remarkPlugins={[remarkGfm]}>
                         {finding.description}
-                      </ReactMarkdown>
+                      </ReactMarkdownAny>
                     </div>
                     {finding.confidence && (
                       <div className="mt-2 text-sm">
@@ -265,16 +267,16 @@ export function SlitherReport({ projectId }: SlitherReportProps) {
                       <div className="bg-white p-3 rounded border">
                       <div className="relative mt-2">
                         <div className="prose prose-sm max-w-none bg-gray-100 p-3 rounded border">
-                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                          <ReactMarkdownAny remarkPlugins={[remarkGfm]}>
                             {finding.remediation || finding.extra?.solution}
-                          </ReactMarkdown>
+                          </ReactMarkdownAny>
                         </div>
-                        <button
-                          onClick={() => navigator.clipboard.writeText(finding.remediation || finding.extra?.solution || '')}
-                          className="absolute top-3 right-3 px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded transition-colors"
-                        >
-                          Copy
-                        </button>
+                      <button
+                        onClick={() => navigator.clipboard.writeText(finding.remediation || finding.extra?.solution || '')}
+                        className="absolute top-3 right-3 px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
+                      >
+                        Copy
+                      </button>
                       </div>
 
                       </div>
