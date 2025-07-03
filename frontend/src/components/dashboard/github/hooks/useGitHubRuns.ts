@@ -16,7 +16,7 @@ export const useGitHubRuns = ({ repo, workflow, branch }: UseGitHubRunsProps) =>
     setLoading(true);
     try {
       const response = await fetch(
-        `/api/github/${repo}/actions/runs?workflow=${workflow}&branch=${branch}`
+        `/api/dashboard/github/actions/runs?workflow=${workflow}&branch=${branch}`
       );
       const data = await response.json();
       setRuns(data.workflow_runs || []);

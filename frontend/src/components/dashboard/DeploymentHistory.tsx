@@ -59,8 +59,8 @@ export function DeploymentHistory({ projectId }: DeploymentHistoryProps) {
     const fetchFilters = async () => {
       try {
         const [envRes, branchRes] = await Promise.all([
-          fetch(`/api/deployments/${projectId}/environments`),
-          fetch(`/api/deployments/${projectId}/branches`)
+          fetch(`/api/dashboard/deployments/${projectId}/environments`),
+          fetch(`/api/dashboard/deployments/${projectId}/branches`)
         ]);
         setEnvironments(await envRes.json());
         setBranches(await branchRes.json());
@@ -78,7 +78,7 @@ export function DeploymentHistory({ projectId }: DeploymentHistoryProps) {
         if (selectedStatuses.length) params.append('statuses', selectedStatuses.join(','));
         if (selectedBranch) params.append('branch', selectedBranch);
 
-        const response = await fetch(`/api/deployments/${projectId}?${params.toString()}`);
+        const response = await fetch(`/api/dashboard/deployments/${projectId}?${params.toString()}`);
         const data = await response.json();
         const deployments = data.deployments || [];
         setDeployments(deployments);

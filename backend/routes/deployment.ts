@@ -1,17 +1,71 @@
 import express from 'express';
-import { getDeployments, getDeploymentById } from '../services/dashboard/deploymentService';
+import { getDeployments, getDeploymentById, getEnvironments, getBranches } from '../services/dashboard/deploymentService';
 
 const router = express.Router();
 
-router.get('/', async (req, res) => {
+router.get('/:projectId/environments', async (req, res) => {
   try {
-    const deployments = await getDeployments();
-    res.json({ 
-      deployments,
+    const environments = await getEnvironments();
+    res.json(environments);
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch environments',
+      details: error instanceof Error ? error.message : String(error),
       timestamp: new Date().toISOString()
     });
+  }
+});
+
+router.get('/:projectId/branches', async (req, res) => {
+  try {
+    const branches = await getBranches();
+    res.json(branches);
   } catch (error) {
-    res.status(500).json({ 
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch branches',
+      details: error instanceof Error ? error.message : String(error),
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+router.get('/:projectId', async (req, res) => {
+  try {
+    const { range, environments, statuses, branch } = req.query;
+
+    const filters: any = {};
+
+    if (environments) {
+      filters.environment = (environments as string).split(',');
+    }
+    if (statuses) {
+      filters.status = (statuses as string).split(',');
+    }
+    if (branch) {
+      filters.branch = branch as string;
+    }
+
+    // Handle range filter (e.g., '7d', '30d', 'all')
+    if (range && range !== 'all') {
+      const now = new Date();
+      let fromDate: Date;
+      if (range === '7d') {
+        fromDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      } else if (range === '30d') {
+        fromDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      } else {
+        fromDate = new Date(0);
+      }
+      filters.fromDate = fromDate.toISOString();
+      filters.toDate = now.toISOString();
+    }
+
+    const deployments = await getDeployments(filters);
+    res.json({ deployments });
+  } catch (error) {
+    res.status(500).json({
       success: false,
       error: 'Failed to fetch deployments',
       details: error instanceof Error ? error.message : String(error),
@@ -24,19 +78,19 @@ router.get('/:id', async (req, res) => {
   try {
     const deployment = await getDeploymentById(req.params.id);
     if (!deployment) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
         error: 'Deployment not found',
         timestamp: new Date().toISOString()
       });
     }
-    res.json({ 
+    res.json({
       success: true,
       data: deployment,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
       error: 'Failed to fetch deployment',
       details: error instanceof Error ? error.message : String(error),
@@ -44,6 +98,5 @@ router.get('/:id', async (req, res) => {
     });
   }
 });
-
 
 export default router;
