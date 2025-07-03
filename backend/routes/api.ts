@@ -3,6 +3,8 @@ import { getGitHubService } from '../services/dashboard/githubService';
 import { verifyGitHubWebhook } from '../middleware/webhookVerification';
 import { githubWebhookLimiter } from '../middleware/rateLimiter';
 import quickActionsRoutes from './quickActions';
+import type { VerifiedContract } from '../services/dashboard/verifiedContractsService';
+import { getVerifiedContracts } from '../services/dashboard/verifiedContractsService';
 
 const router = express.Router();
 
@@ -30,21 +32,24 @@ router.post(
   }
 );
 
-// Mock verified contracts endpoint
-router.get('/verified-contracts', (req, res) => {
-  const mockContracts = [
-    {
-      address: '0x1234567890abcdef1234567890abcdef12345678',
-      name: 'MockContract1',
-      abi: []
-    },
-    {
-      address: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
-      name: 'MockContract2',
-      abi: []
-    }
-  ];
-  res.json(mockContracts);
+
+// Verified contracts endpoint
+router.get('/verified-contracts', async (req, res) => {
+  try {
+    const contracts = await getVerifiedContracts();
+    res.json({
+      success: true,
+      data: contracts,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch verified contracts',
+      details: error instanceof Error ? error.message : String(error),
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
 export default router;

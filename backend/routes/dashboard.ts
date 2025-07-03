@@ -1,4 +1,5 @@
 import express from 'express';
+
 import { getConfig, updateConfig } from '../services/dashboard/configService';
 import { getGitHubService } from '../services/dashboard/githubService';
 import { verifyGitHubWebhook } from '../middleware/githubWebhook';
@@ -6,6 +7,7 @@ import deploymentRoutes from './deployment';
 import type { DashboardConfig, TestResult } from '../types/dashboard';
 import { getNetworkStatus } from '../services/dashboard/networkStatusService';
 import { getGasUsageStats } from '../services/dashboard/gasUsageService';
+import { getContracts } from '../services/dashboard/contractsService';
 
 const router = express.Router();
 
@@ -83,6 +85,26 @@ router.put('/config', async (req, res) => {
     res.status(500).json({ 
       success: false,
       error: 'Failed to update configuration',
+      details: error instanceof Error ? error.message : String(error),
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// New contracts endpoint
+router.get('/contracts', async (req, res) => {
+  try {
+    const projectId = req.query.projectId as string;
+    const contracts = await getContracts(projectId);
+    res.json({
+      success: true,
+      data: contracts,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch contracts',
       details: error instanceof Error ? error.message : String(error),
       timestamp: new Date().toISOString()
     });

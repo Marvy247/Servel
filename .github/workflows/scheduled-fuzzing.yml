@@ -1,0 +1,27 @@
+name: Scheduled Fuzzing
+
+on:
+  schedule:
+    - cron: '0 0 * * 0'  # Runs every Sunday at midnight UTC
+
+jobs:
+  fuzz:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: |
+          cd backend && npm install
+          cd ../frontend && npm install
+
+      - name: Run fuzzing tests
+        run: |
+          cd contracts && forge test --fuzz-runs 100
