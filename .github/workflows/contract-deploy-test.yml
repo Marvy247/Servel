@@ -1,0 +1,35 @@
+name: Contract Build, Test and Deploy
+
+on:
+  push:
+    paths:
+      - 'contracts/**'
+
+jobs:
+  build-test-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install Foundry
+        run: |
+          curl -L https://foundry.paradigm.xyz | bash
+          foundryup
+
+      - name: Add Foundry to PATH
+        run: echo "${{ github.workspace }}/.foundry/bin" >> $GITHUB_PATH
+
+      - name: Build contracts
+        run: forge build
+
+      - name: Run tests
+        run: forge test -vvv
+
+      - name: Deploy contracts
+        env:
+          RPC_URL: ${{ secrets.RPC_URL }}
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+        run: |
+          forge script script/Counter.s.sol:CounterScript --rpc-url $RPC_URL --private-key $PRIVATE_KEY --broadcast --verify
