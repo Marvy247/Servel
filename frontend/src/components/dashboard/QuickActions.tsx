@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, CSSProperties } from 'react';
+import Notification from './Notification';
 
 interface Artifact {
   contractName: string;
@@ -43,6 +44,8 @@ const QuickActions = () => {
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
   const [selectedArtifact, setSelectedArtifact] = useState<Artifact | null>(null);
 
+  const [notification, setNotification] = useState<{ message: string; type: 'info' | 'success' | 'error' } | null>(null);
+
   useEffect(() => {
     fetchArtifacts();
   }, []);
@@ -58,11 +61,11 @@ const QuickActions = () => {
           setSelectedArtifact(data.artifacts[0]);
         }
       } else {
-        console.error('Failed to load artifacts:', data.message);
+        setNotification({ message: 'Failed to load artifacts: ' + data.message, type: 'error' });
         setSelectedArtifact(null);
       }
     } catch (error) {
-      console.error('Error fetching artifacts:', error);
+      setNotification({ message: 'Error fetching artifacts', type: 'error' });
       setSelectedArtifact(null);
     }
   };
@@ -73,7 +76,7 @@ const QuickActions = () => {
 
   const handleDeploy = async () => {
     if (!selectedArtifact) {
-      alert('Please select an artifact before deploying.');
+      setNotification({ message: 'Please select an artifact before deploying.', type: 'error' });
       return;
     }
     setLoading(prev => ({ ...prev, deploy: true }));
@@ -84,8 +87,13 @@ const QuickActions = () => {
         body: JSON.stringify({ artifact: selectedArtifact }),
       });
       const data = await response.json();
-      console.log(data.message);
+      if (data.success) {
+        setNotification({ message: 'Deploy action completed successfully.', type: 'success' });
+      } else {
+        setNotification({ message: 'Deploy action failed: ' + (data.error || 'Unknown error'), type: 'error' });
+      }
     } catch (error) {
+      setNotification({ message: 'Deploy action failed. See console for details.', type: 'error' });
       console.error('Deploy action failed', error);
     } finally {
       setLoading(prev => ({ ...prev, deploy: false }));
@@ -94,14 +102,14 @@ const QuickActions = () => {
 
   const handleVerify = async () => {
     if (!selectedArtifact) {
-      alert('Please select an artifact before verifying.');
+      setNotification({ message: 'Please select an artifact before verifying.', type: 'error' });
       return;
     }
     setLoading(prev => ({ ...prev, verify: true }));
     try {
       const contractAddress = prompt('Enter the deployed contract address to verify:');
       if (!contractAddress) {
-        alert('Contract address is required for verification.');
+        setNotification({ message: 'Contract address is required for verification.', type: 'error' });
         setLoading(prev => ({ ...prev, verify: false }));
         return;
       }
@@ -111,15 +119,14 @@ const QuickActions = () => {
         body: JSON.stringify({ contractAddress, artifact: selectedArtifact }),
       });
       const data = await response.json();
-      console.log(data.message);
       if (data.success) {
-        alert('Contract was successfully verified.');
+        setNotification({ message: 'Contract was successfully verified.', type: 'success' });
       } else {
-        alert('Contract verification failed: ' + (data.message || 'Unknown error'));
+        setNotification({ message: 'Contract verification failed: ' + (data.message || 'Unknown error'), type: 'error' });
       }
     } catch (error) {
+      setNotification({ message: 'Verify action failed. See console for details.', type: 'error' });
       console.error('Verify action failed', error);
-      alert('Verify action failed. See console for details.');
     } finally {
       setLoading(prev => ({ ...prev, verify: false }));
     }
@@ -133,13 +140,13 @@ const QuickActions = () => {
       });
       const data = await response.json();
       if (data.success) {
-        alert('Tests ran successfully:\n' + data.output);
+        setNotification({ message: 'Tests ran successfully.', type: 'success' });
       } else {
-        alert('Test run failed: ' + (data.error || 'Unknown error'));
+        setNotification({ message: 'Test run failed: ' + (data.error || 'Unknown error'), type: 'error' });
       }
     } catch (error) {
+      setNotification({ message: 'Run tests action failed. See console for details.', type: 'error' });
       console.error('Run tests action failed', error);
-      alert('Run tests action failed. See console for details.');
     } finally {
       setLoading(prev => ({ ...prev, test: false }));
     }
@@ -147,6 +154,13 @@ const QuickActions = () => {
 
   return (
     <div>
+      {notification && (
+        <Notification
+          message={notification.message}
+          type={notification.type}
+          onClose={() => setNotification(null)}
+        />
+      )}
       <select
         value={selectedArtifact?.contractName || ''}
         onChange={e => {

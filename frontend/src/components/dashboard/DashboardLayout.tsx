@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FaCogs, FaListAlt, FaChartLine, FaClipboardList, FaFileContract } from 'react-icons/fa';
+import { FaCogs, FaListAlt, FaChartLine, FaClipboardList, FaFileContract, FaRocket } from 'react-icons/fa';
 import ContractInteraction from './ContractInteraction';
 import EventLogViewer from './EventLogViewer';
 import QuickActions from './QuickActions';
@@ -13,9 +13,10 @@ import { SlitherReport } from './SlitherReport';
 import { TestingSummary } from './TestingSummary';
 import { TestResults } from './TestResults';
 import { ContractsList } from './ContractsList';
+import DeploymentWizard from './DeploymentWizard';
 
 const DashboardLayout: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'interaction' | 'events' | 'monitor' | 'testing' | 'contracts'>('interaction');
+  const [activeTab, setActiveTab] = useState<'interaction' | 'events' | 'monitor' | 'testing' | 'contracts' | 'deployment'>('interaction');
   const [ciStatus, setCiStatus] = useState<'success' | 'failed' | 'running'>('running');
   const [network, setNetwork] = useState<'sepolia' | 'anvil'>('sepolia');
 
@@ -141,6 +142,17 @@ const DashboardLayout: React.FC = () => {
             <FaFileContract />
             <span>Contracts</span>
           </button>
+          <button
+            className={`px-4 py-2 font-medium text-sm flex items-center space-x-2 focus:outline-none ${
+              activeTab === 'deployment' 
+                ? 'border-b-2 border-blue-500 text-blue-600 dark:text-blue-400' 
+                : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+            }`}
+            onClick={() => setActiveTab('deployment')}
+          >
+            <FaRocket />
+            <span>Deployment</span>
+          </button>
         </div>
 
         {/* Tab Content */}
@@ -194,6 +206,10 @@ const DashboardLayout: React.FC = () => {
           ) : activeTab === 'contracts' ? (
             <div className="p-4">
               <ContractsList projectId={sampleProjectId} />
+            </div>
+          ) : activeTab === 'deployment' ? (
+            <div className="p-4">
+              <DeploymentWizard />
             </div>
           ) : null}
         </div>

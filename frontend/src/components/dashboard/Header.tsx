@@ -5,6 +5,7 @@ import Link from 'next/link';
 import type { Status } from './StatusBadge';
 import { StatusBadge } from './StatusBadge';
 import WalletDropdown from './WalletDropdown';
+import DarkModeToggle from '../ui/DarkModeToggle';
 
 // Simple SVG icons to replace Heroicons
 const MenuIcon = () => (
@@ -54,11 +55,13 @@ export default function Header() {
               ))}
             </div>
             <StatusBadge status={ciStatus} />
+            <DarkModeToggle />
             <WalletDropdown />
           </nav>
 
           {/* Mobile menu button */}
-          <div className="md:hidden">
+          <div className="md:hidden flex items-center space-x-2">
+            <DarkModeToggle />
             <button
               type="button"
               className="inline-flex items-center justify-center rounded-md p-2 hover:bg-white hover:bg-opacity-20 transition-colors"
@@ -88,8 +91,9 @@ export default function Header() {
                 {link.name}
               </Link>
             ))}
-            <div className="px-3 py-2">
+            <div className="px-3 py-2 flex items-center space-x-2">
               <StatusBadge status={ciStatus} />
+              <DarkModeToggle />
               <WalletDropdown />
             </div>
           </div>

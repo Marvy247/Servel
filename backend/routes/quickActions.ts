@@ -68,13 +68,15 @@ router.post('/deploy', async (req, res) => {
   try {
     const artifact = req.body.artifact;
     console.log('Received artifact for deployment:', artifact);
-    if (!artifact) {
-      return res.status(400).json({ success: false, error: 'Missing contract artifact in request body' });
+    if (!artifact || typeof artifact !== 'object' || !artifact.contractName || !artifact.bytecode) {
+      return res.status(400).json({ success: false, error: 'Invalid or missing contract artifact in request body' });
     }
 
     console.log('Deploying to RPC URL:', rpcUrl);
     const maskedKey = process.env.PRIVATE_KEY ? process.env.PRIVATE_KEY.slice(0, 6) + '...' : 'default key';
     console.log('Using private key:', maskedKey);
+
+    // TODO: Add authentication/authorization here
 
     const deployment = await deploymentService.deployContract(artifact, { name: 'anvil', rpcUrl });
 

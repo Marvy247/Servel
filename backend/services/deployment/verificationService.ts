@@ -12,8 +12,21 @@ export class VerificationService {
     contractAddress: string,
     expectedArtifact: DeploymentArtifact
   ): Promise<boolean> {
-    // Implementation to verify contract matches expected artifact
-    return true;
+    try {
+      // Verify bytecode matches
+      const bytecodeMatches = await this.verifyBytecode(contractAddress, expectedArtifact.bytecode);
+      if (!bytecodeMatches) {
+        console.error('Bytecode does not match for contract at', contractAddress);
+        return false;
+      }
+
+      // Additional verification logic can be added here, e.g., ABI matching, metadata checks
+
+      return true;
+    } catch (error) {
+      console.error('Error during contract verification:', error);
+      return false;
+    }
   }
 
   async verifyBytecode(
@@ -21,6 +34,8 @@ export class VerificationService {
     expectedBytecode: string
   ): Promise<boolean> {
     const actualBytecode = await this.provider.getCode(contractAddress);
-    return actualBytecode === expectedBytecode;
+    // Normalize bytecode strings for comparison
+    const normalize = (code: string) => code.toLowerCase().replace(/^0x/, '');
+    return normalize(actualBytecode) === normalize(expectedBytecode);
   }
 }
