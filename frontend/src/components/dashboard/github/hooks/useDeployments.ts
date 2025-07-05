@@ -9,43 +9,25 @@ export const useDeployments = (repo: string) => {
   useEffect(() => {
     const fetchDeployments = async () => {
       try {
-        // TODO: Replace with actual API call
-        // Mock data for development
-        const mockDeployments: Deployment[] = [
-          {
-            id: 1,
-            environment: 'production',
-            status: 'active',
-            created_at: new Date().toISOString(),
-            sha: 'a1b2c3d4e5f6g7h8i9j0',
-            description: 'Latest production deployment'
-          },
-          {
-            id: 2,
-            environment: 'staging',
-            status: 'pending',
-            created_at: new Date(Date.now() - 86400000).toISOString(),
-            sha: 'b2c3d4e5f6g7h8i9j0a1',
-            description: 'Feature testing deployment'
-          },
-          {
-            id: 3,
-            environment: 'development',
-            status: 'error',
-            created_at: new Date(Date.now() - 172800000).toISOString(),
-            sha: 'c3d4e5f6g7h8i9j0a1b2'
-          }
-        ];
-        
-        setDeployments(mockDeployments);
+        const response = await fetch("/api/github/deployments?repo=" + encodeURIComponent(repo));
+        if (!response.ok) {
+          throw new Error("Failed to fetch deployments");
+        }
+        const data = await response.json();
+        setDeployments(data.deployments || []);
         setLoading(false);
       } catch (err) {
-        setError('Failed to fetch deployments');
+        setError("Failed to fetch deployments");
         setLoading(false);
       }
     };
 
-    fetchDeployments();
+    if (repo) {
+      fetchDeployments();
+    } else {
+      setDeployments([]);
+      setLoading(false);
+    }
   }, [repo]);
 
   return { deployments, loading, error };

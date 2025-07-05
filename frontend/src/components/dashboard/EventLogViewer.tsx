@@ -45,6 +45,7 @@ const EventLogViewer: React.FC = () => {
 
 
   useEffect(() => {
+    // TODO: Improve log viewer UI for better readability and usability
     // Mock data setup
     setIsLoading(true);
     setIsConnected(true);

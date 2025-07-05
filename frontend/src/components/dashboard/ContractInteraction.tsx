@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react';
 import { parseRevertReason } from '../../utils/errorParser';
 import { validateInput, formatValue } from '../../utils/inputValidator';
 import { useWeb3 } from '../../providers/web3';
-import { Contract, InterfaceAbi, JsonFragment } from 'ethers';
+import { Contract, JsonFragment } from 'ethers';
 import { StatusBadge } from './StatusBadge';
+import Notification from './Notification';
 
 export default function ContractInteraction() {
   const { provider } = useWeb3();
@@ -33,6 +34,48 @@ export default function ContractInteraction() {
     name: string
     abi: JsonFragment[] | string
   }>>([]);
+
+  // New state for onboarding tooltip visibility
+  const [showTooltip, setShowTooltip] = useState(true);
+
+  // New state for notifications
+  const [notification, setNotification] = useState<{message: string; type: 'info' | 'success' | 'error'} | null>(null);
+
+  // Function to close tooltip
+  const closeTooltip = () => {
+    setShowTooltip(false);
+    localStorage.setItem('contractInteractionTooltipDismissed', 'true');
+  };
+
+  // Check localStorage to persist tooltip dismissal
+  useEffect(() => {
+    const dismissed = localStorage.getItem('contractInteractionTooltipDismissed');
+    if (dismissed === 'true') {
+      setShowTooltip(false);
+    }
+  }, []);
+
+  // Tooltip component
+  const Tooltip = () => (
+    <div className="absolute top-0 right-0 mt-2 mr-2 p-3 bg-blue-600 text-white rounded shadow-lg max-w-xs z-50">
+      <p className="text-sm">
+        Select a contract and function, enter arguments, then execute to interact with the contract.
+      </p>
+      <button
+        type="button"
+        onClick={closeTooltip}
+        className="mt-2 px-2 py-1 bg-blue-800 rounded hover:bg-blue-700 text-xs"
+      >
+        Got it
+      </button>
+    </div>
+  );
+
+  // Function to show notification
+  const showNotification = (message: string, type: 'info' | 'success' | 'error' = 'info') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 5000);
+  };
 
   useEffect(() => {
     const loadVerifiedContracts = async () => {
@@ -132,10 +175,12 @@ export default function ContractInteraction() {
         const result = await (contract as any)[selectedFunction.name](...Object.values(functionArgs));
         setResult(result);
         setTxStatus('success');
+        showNotification('Read function executed successfully', 'success');
       } else {
         // Write function
         const tx = await (contract.connect(signer) as any)[selectedFunction.name](...Object.values(functionArgs));
         setTxHash(tx.hash);
+        showNotification('Transaction submitted', 'info');
         
         // Track confirmations
         tx.wait()
@@ -143,16 +188,19 @@ export default function ContractInteraction() {
             setGasUsed(Number(receipt.gasUsed));
             setTxStatus('success');
             setResult(receipt);
+            showNotification('Transaction confirmed', 'success');
           })
           .catch((error: any) => {
             setTxStatus('error');
             const revertReason = parseRevertReason(error);
             setErrorMessage(revertReason || 'Transaction failed');
+            showNotification(revertReason || 'Transaction failed', 'error');
           });
       }
     } catch (error) {
       setTxStatus('error');
       setErrorMessage(error instanceof Error ? error.message : String(error));
+      showNotification(error instanceof Error ? error.message : String(error), 'error');
     }
   };
 
@@ -241,7 +289,15 @@ export default function ContractInteraction() {
   };
 
   return (
-    <div className="border border-gray-200 rounded-lg p-5 bg-white shadow-sm">
+    <div className="relative border border-gray-200 rounded-lg p-5 bg-white shadow-sm">
+      {showTooltip && <Tooltip />}
+      {notification && (
+        <Notification
+          message={notification.message}
+          type={notification.type}
+          onClose={() => setNotification(null)}
+        />
+      )}
       <h2 className="text-xl font-semibold mb-4">Contract Playground</h2>
       
       <form onSubmit={handleSubmit} className="space-y-4">

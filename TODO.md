@@ -57,7 +57,7 @@
   - [x] GitHub Actions integration
   - [x] Test/analysis result visualization
   - [x] Deployment history
-- [ ] Network switcher (Sepolia/Anvil)
+- [x] Network switcher (Sepolia/Anvil)
 
 ### 🐳 DevOps & Infrastructure
 - [ ] Anvil automation:
