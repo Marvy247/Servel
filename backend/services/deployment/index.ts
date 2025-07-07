@@ -1,6 +1,7 @@
 import { ethers } from 'ethers';
 import { ArtifactScanner } from './artifactScanner';
 import { VerificationService } from './verificationService';
+import { DeploymentArtifact } from '../../types';
 import { DeploymentTracker } from './deploymentTracker';
 
 export * from './artifactScanner';
@@ -15,10 +16,19 @@ export class DeploymentService {
   private verifier: VerificationService;
   private tracker: DeploymentTracker;
 
-  constructor(rpcUrl: string = 'http://localhost:8545') {
+  private static instance: DeploymentService;
+
+  private constructor(rpcUrl: string = 'http://localhost:8545') {
     this.scanner = new ArtifactScanner(rpcUrl);
     this.verifier = new VerificationService(rpcUrl);
     this.tracker = new DeploymentTracker();
+  }
+
+  public static getInstance(): DeploymentService {
+    if (!DeploymentService.instance) {
+      DeploymentService.instance = new DeploymentService();
+    }
+    return DeploymentService.instance;
   }
 
   async deployAllContracts(): Promise<void> {
@@ -81,9 +91,18 @@ export class DeploymentService {
         throw waitError;
       }
 
+      const deployedAddress = await contract.getAddress();
+      this.tracker.trackDeployment(network.name, {
+        address: deployedAddress,
+        abi: artifact.abi,
+        bytecode: artifact.bytecode,
+        deployedBytecode: '',
+        network: network.name
+      });
+      console.log('Deployment tracked:', deployedAddress, 'on network:', network.name);
       return {
         contractName: artifact.contractName,
-        address: await contract.getAddress(),
+        address: deployedAddress,
         network: network.name,
         txHash: contract.deploymentTransaction()?.hash,
         timestamp: new Date().toISOString()
@@ -95,5 +114,9 @@ export class DeploymentService {
       }
       throw error;
     }
+  }
+
+  public getTrackedDeployments(): Record<string, DeploymentArtifact[]> {
+    return this.tracker.getAllDeployments();
   }
 }

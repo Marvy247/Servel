@@ -1,6 +1,6 @@
 # TODO - Contract Deployment MVP Improvements (Incremental)
 
-## 1. Guided Deployment Wizard
+[done] 1. Guided Deployment Wizard
 - Design and implement a step-by-step wizard UI for contract deployment.
 - Include artifact selection, environment/network selection, deployment progress, verification, and testing steps.
 - Add progress indicators and clear instructions for each step.

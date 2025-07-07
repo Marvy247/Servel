@@ -7,6 +7,7 @@ import { EventListenerService } from './services/events/eventListenerService';
 
 import { TestResultEventService } from './services/events/testResultEventService';
 import quickActionsRoutes from './routes/quickActions';
+import deploymentRoutes from './routes/deployment';
 
 const app = express();
 
@@ -27,7 +28,7 @@ if (webhookSecret) {
 app.use('/api', apiRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/quickActions', quickActionsRoutes);
-
+app.use('/api/deployment', deploymentRoutes);
 
 // Initialize WebSocket EventListenerService
 const providerUrl = process.env.PROVIDER_URL || 'http://localhost:8545';

@@ -198,6 +198,8 @@ const DeploymentWizard = () => {
     <div className="max-w-xl mx-auto p-4 space-y-6 bg-white rounded shadow">
       <h2 className="text-xl font-semibold">Contract Deployment Wizard</h2>
 
+      <Progress value={(step / 4) * 100} className="mb-4" />
+
       {step === 1 && (
         <div>
           <h3 className="mb-2 font-medium">Step 1: Select Contract Artifact</h3>
@@ -268,7 +270,7 @@ const DeploymentWizard = () => {
         <div>
           <h3 className="mb-2 font-medium">Step 3: Deployment Progress</h3>
           {deploying ? (
-            <Progress value={50} className="mb-2" />
+            <p>Deploying contract...</p>
           ) : deploymentSuccess === true ? (
             <p className="text-green-600 font-medium">Deployment successful! Tx Hash: {deploymentTxHash}</p>
           ) : deploymentSuccess === false ? (

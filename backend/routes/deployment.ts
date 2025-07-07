@@ -1,7 +1,9 @@
 import express from 'express';
 import { getDeployments, getDeploymentById, getEnvironments, getBranches } from '../services/dashboard/deploymentService';
+import { DeploymentService } from '../services/deployment';
 
 const router = express.Router();
+const deploymentService = DeploymentService.getInstance();
 
 router.get('/:projectId/environments', async (req, res) => {
   try {
@@ -93,6 +95,26 @@ router.get('/:id', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to fetch deployment',
+      details: error instanceof Error ? error.message : String(error),
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+router.get('/:projectId/addresses', async (req, res) => {
+  try {
+    const allDeployments = deploymentService.getTrackedDeployments();
+    console.log('Tracked deployments:', allDeployments);
+    res.json({
+      success: true,
+      data: allDeployments,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error fetching deployed contract addresses:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch deployed contract addresses',
       details: error instanceof Error ? error.message : String(error),
       timestamp: new Date().toISOString()
     });

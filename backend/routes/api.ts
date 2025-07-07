@@ -3,10 +3,27 @@ import { getGitHubService } from '../services/dashboard/githubService';
 import { verifyGitHubWebhook } from '../middleware/webhookVerification';
 import { githubWebhookLimiter } from '../middleware/rateLimiter';
 import quickActionsRoutes from './quickActions';
-import type { VerifiedContract } from '../services/dashboard/verifiedContractsService';
-import { getVerifiedContracts } from '../services/dashboard/verifiedContractsService';
+
 
 const router = express.Router();
+
+router.get('/dashboard/contracts', async (req, res) => {
+  try {
+    const projectId = req.query.projectId as string;
+    // For now, ignoring projectId and returning all tracked deployments
+    const deploymentModule = await import('../services/deployment');
+    const deploymentService = deploymentModule.DeploymentService.getInstance();
+    const deployments = deploymentService.getTrackedDeployments();
+    res.json(deployments);
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch contracts',
+      details: error instanceof Error ? error.message : String(error),
+      timestamp: new Date().toISOString()
+    });
+  }
+});
 
 // Basic health check endpoint
 router.get('/health', (req, res) => {
@@ -31,25 +48,5 @@ router.post(
     }
   }
 );
-
-
-// Verified contracts endpoint
-router.get('/verified-contracts', async (req, res) => {
-  try {
-    const contracts = await getVerifiedContracts();
-    res.json({
-      success: true,
-      data: contracts,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch verified contracts',
-      details: error instanceof Error ? error.message : String(error),
-      timestamp: new Date().toISOString()
-    });
-  }
-});
 
 export default router;
