@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import VerificationForm from '../../app/dashboard/contracts/VerificationForm'
+import { useDeploymentEvents } from '../../hooks/useDeploymentEvents'
 
 interface Contract {
   name: string
@@ -20,10 +21,39 @@ export function ContractsList({ projectId }: ContractsListProps) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
+  useDeploymentEvents((deployment) => {
+    setContracts((prevContracts) => {
+      // Check if contract already exists
+      const exists = prevContracts.some(
+        (c) => c.address === deployment.address && c.network === deployment.network
+      )
+      if (exists) {
+        // Update existing contract's lastDeployed timestamp
+        return prevContracts.map((c) =>
+          c.address === deployment.address && c.network === deployment.network
+            ? { ...c, lastDeployed: deployment.timestamp }
+            : c
+        )
+      } else {
+        // Add new contract to the list
+        return [
+          ...prevContracts,
+          {
+            name: deployment.contractName,
+            address: deployment.address,
+            network: deployment.network,
+            verified: false,
+            lastDeployed: deployment.timestamp
+          }
+        ]
+      }
+    })
+  })
+
   useEffect(() => {
     const fetchContracts = async () => {
       try {
-        const response = await fetch(`/api/dashboard/contracts?projectId=${projectId}`)
+        const response = await fetch(`http://localhost:3001/api/deployment/${projectId}/addresses`)
         const data = await response.json()
         
         if (!response.ok) {
@@ -38,9 +68,9 @@ export function ContractsList({ projectId }: ContractsListProps) {
               flattenedContracts.push({
                 name: contract.contractName || 'Unknown',
                 address: contract.address,
-                network: contract.network,
+                network: network,
                 verified: false, // or derive from contract data if available
-                lastDeployed: contract.timestamp || ''
+                lastDeployed: '' // no timestamp in this endpoint
               })
             })
           }

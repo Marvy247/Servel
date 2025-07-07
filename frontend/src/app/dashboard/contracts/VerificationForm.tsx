@@ -1,15 +1,15 @@
 import React, { useEffect, useState } from 'react';
 
-interface DeploymentArtifact {
+interface Contract {
+  name: string;
   address: string;
-  abi: any[];
-  bytecode: string;
-  deployedBytecode: string;
   network: string;
+  verified: boolean;
+  lastDeployed: string;
 }
 
-interface DeploymentsByNetwork {
-  [network: string]: DeploymentArtifact[];
+interface ContractsByNetwork {
+  [network: string]: Contract[];
 }
 
 interface VerificationFormProps {
@@ -17,34 +17,33 @@ interface VerificationFormProps {
 }
 
 const VerificationForm: React.FC<VerificationFormProps> = ({ projectId }) => {
-  const [deployments, setDeployments] = useState<DeploymentsByNetwork>({});
+  const [contracts, setContracts] = useState<ContractsByNetwork>({});
   const [selectedAddress, setSelectedAddress] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>('');
 
   useEffect(() => {
-    const fetchDeployments = async () => {
+    const fetchContracts = async () => {
       try {
-        const response = await fetch(`http://localhost:3001/api/deployment/${projectId}/addresses`);
+        const response = await fetch(`/api/dashboard/contracts?projectId=${projectId}`);
         const data = await response.json();
-        if (data.success) {
-          setDeployments(data.data);
-          // Pre-fill with the first address found if any
-          const firstNetwork = Object.keys(data.data)[0];
-          if (firstNetwork && data.data[firstNetwork].length > 0) {
-            setSelectedAddress(data.data[firstNetwork][0].address);
-          }
-        } else {
-          setError('Failed to load deployed contract addresses.');
+
+        // data is Record<string, Contract[]>
+        setContracts(data);
+
+        // Pre-fill with the first address found if any
+        const firstNetwork = Object.keys(data)[0];
+        if (firstNetwork && data[firstNetwork].length > 0) {
+          setSelectedAddress(data[firstNetwork][0].address);
         }
       } catch (err) {
-        setError('Error fetching deployed contract addresses.');
+        setError('Failed to load deployed contract addresses.');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchDeployments();
+    fetchContracts();
   }, [projectId]);
 
   const handleAddressChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
@@ -74,12 +73,12 @@ const VerificationForm: React.FC<VerificationFormProps> = ({ projectId }) => {
         onChange={handleAddressChange}
         required
       >
-        {Object.entries(deployments).map(([network, artifacts]) =>
-          artifacts.map((artifact) => (
-            <option key={artifact.address} value={artifact.address}>
-              {network} - {artifact.address}
+        {Object.entries(contracts).map(([network, contractsList]) =>
+          Array.isArray(contractsList) ? contractsList.map((contract) => (
+            <option key={contract.address} value={contract.address}>
+              {network} - {contract.address}
             </option>
-          ))
+          )) : null
         )}
       </select>
       <button type="submit">Verify Contract</button>

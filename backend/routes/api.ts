@@ -14,7 +14,20 @@ router.get('/dashboard/contracts', async (req, res) => {
     const deploymentModule = await import('../services/deployment');
     const deploymentService = deploymentModule.DeploymentService.getInstance();
     const deployments = deploymentService.getTrackedDeployments();
-    res.json(deployments);
+
+    // Transform deployments to expected format for ContractsList
+    const transformed: Record<string, any[]> = {};
+    for (const [network, artifacts] of Object.entries(deployments)) {
+      transformed[network] = artifacts.map((artifact: any) => ({
+        name: artifact.contractName || 'Unknown',
+        address: artifact.address,
+        network: artifact.network,
+        verified: false, // default false, update if verification info available
+        lastDeployed: artifact.timestamp || new Date().toISOString()
+      }));
+    }
+
+    res.json(transformed);
   } catch (error) {
     res.status(500).json({
       success: false,

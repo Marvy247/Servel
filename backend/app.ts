@@ -35,6 +35,11 @@ const providerUrl = process.env.PROVIDER_URL || 'http://localhost:8545';
 const wssPort = parseInt(process.env.WSS_PORT || '8080', 10);
 const eventListenerService = new EventListenerService(providerUrl, wssPort);
 
+// Set eventListenerService instance in DeploymentService
+import { DeploymentService } from './services/deployment';
+const deploymentService = DeploymentService.getInstance();
+deploymentService.setEventListenerService(eventListenerService);
+
 // Initialize test result event handling
 const testResultEventService = new TestResultEventService(eventListenerService);
 

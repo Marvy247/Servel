@@ -4,6 +4,7 @@ import { VerificationService } from './verificationService';
 import { DeploymentArtifact } from '../../types';
 import { DeploymentTracker } from './deploymentTracker';
 
+
 export * from './artifactScanner';
 export * from './verificationService';
 export * from './deploymentTracker';
@@ -15,6 +16,7 @@ export class DeploymentService {
   private scanner: ArtifactScanner;
   private verifier: VerificationService;
   private tracker: DeploymentTracker;
+  private eventListenerService: any; // Add property for event listener service
 
   private static instance: DeploymentService;
 
@@ -22,6 +24,10 @@ export class DeploymentService {
     this.scanner = new ArtifactScanner(rpcUrl);
     this.verifier = new VerificationService(rpcUrl);
     this.tracker = new DeploymentTracker();
+  }
+
+  public setEventListenerService(eventListenerService: any) {
+    this.eventListenerService = eventListenerService;
   }
 
   public static getInstance(): DeploymentService {
@@ -57,6 +63,19 @@ export class DeploymentService {
           deployedBytecode: '',
           network: 'localhost'
         });
+        // Broadcast deployment event
+        if (this.eventListenerService) {
+          this.eventListenerService.broadcastToClients({
+            type: 'deployment',
+            data: {
+              contractName: (artifact as any).contractName || 'UnknownContract',
+              address: deployment.address,
+              network: 'localhost',
+              verified: false,
+              timestamp: new Date().toISOString()
+            }
+          });
+        }
       }
     } catch (error) {
       console.error('Deployment failed:', error);
@@ -100,6 +119,19 @@ export class DeploymentService {
         network: network.name
       });
       console.log('Deployment tracked:', deployedAddress, 'on network:', network.name);
+      // Broadcast deployment event
+      if (this.eventListenerService) {
+        this.eventListenerService.broadcastToClients({
+          type: 'deployment',
+          data: {
+            contractName: (artifact as any).contractName || 'UnknownContract',
+            address: deployedAddress,
+            network: network.name,
+            verified: false,
+            timestamp: new Date().toISOString()
+          }
+        });
+      }
       return {
         contractName: artifact.contractName,
         address: deployedAddress,
