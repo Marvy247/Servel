@@ -93,22 +93,43 @@ export class DeploymentService {
       const wallet = new ethers.Wallet(privateKey, provider);
 
       const balance = await provider.getBalance(wallet.address);
-      console.log(`Wallet address: ${await wallet.getAddress()}, balance: ${balance.toString()}`);
+      this.eventListenerService?.broadcastToClients({
+        type: 'deployment-log',
+        data: `Wallet address: ${await wallet.getAddress()}, balance: ${balance.toString()}`
+      });
 
       if (balance === 0n) {
-        throw new Error('Wallet balance is zero. Please fund the wallet to deploy contracts.');
+        const errorMsg = 'Wallet balance is zero. Please fund the wallet to deploy contracts.';
+        this.eventListenerService?.broadcastToClients({
+          type: 'deployment-log',
+          data: errorMsg
+        });
+        throw new Error(errorMsg);
       }
 
       const factory = new ethers.ContractFactory(artifact.abi, artifact.bytecode, wallet);
       
-      console.log(`Deploying ${artifact.contractName} to ${network.name}...`);
+      this.eventListenerService?.broadcastToClients({
+        type: 'deployment-log',
+        data: `Deploying ${artifact.contractName} to ${network.name}...`
+      });
       const contract = await factory.deploy();
-      console.log('Contract deployment transaction sent, waiting for deployment...');
+      this.eventListenerService?.broadcastToClients({
+        type: 'deployment-log',
+        data: 'Contract deployment transaction sent, waiting for deployment...'
+      });
       try {
         await contract.waitForDeployment();
-        console.log('Contract deployed successfully at address:', await contract.getAddress());
+        this.eventListenerService?.broadcastToClients({
+          type: 'deployment-log',
+          data: `Contract deployed successfully at address: ${await contract.getAddress()}`
+        });
       } catch (waitError) {
-        console.error('Error while waiting for contract deployment:', waitError);
+        const errorMsg = `Error while waiting for contract deployment: ${waitError instanceof Error ? waitError.message : String(waitError)}`;
+        this.eventListenerService?.broadcastToClients({
+          type: 'deployment-log',
+          data: errorMsg
+        });
         throw waitError;
       }
 
@@ -122,20 +143,16 @@ export class DeploymentService {
         network: network.name,
         lastDeployed: new Date().toISOString()
       });
-      console.log('Deployment tracked:', deployedAddress, 'on network:', network.name);
-      // Broadcast deployment event
-      if (this.eventListenerService) {
-        this.eventListenerService.broadcastToClients({
-          type: 'deployment',
-          data: {
-            contractName: (artifact as any).contractName || 'UnknownContract',
-            address: deployedAddress,
-            network: network.name,
-            verified: false,
-            timestamp: new Date().toISOString()
-          }
-        });
-      }
+      this.eventListenerService?.broadcastToClients({
+        type: 'deployment',
+        data: {
+          contractName: (artifact as any).contractName || 'UnknownContract',
+          address: deployedAddress,
+          network: network.name,
+          verified: false,
+          timestamp: new Date().toISOString()
+        }
+      });
       return {
         contractName: artifact.contractName,
         address: deployedAddress,
@@ -144,6 +161,11 @@ export class DeploymentService {
         timestamp: new Date().toISOString()
       };
     } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      this.eventListenerService?.broadcastToClients({
+        type: 'deployment-log',
+        data: `Error in deployContract: ${errorMsg}`
+      });
       console.error('Error in deployContract:', error);
       if (error instanceof Error) {
         console.error(error.stack);

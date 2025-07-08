@@ -1,5 +1,3 @@
-'use client';
-
 import { useState, useEffect, useCallback } from 'react';
 import { Button } from '../ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
@@ -59,6 +57,17 @@ const DeploymentWizard = () => {
 
   useEffect(() => {
     fetchArtifacts();
+
+    // Load persisted environment and network preferences from localStorage
+    const savedEnvironment = localStorage.getItem('selectedEnvironment') as Environment | null;
+    if (savedEnvironment && environments.includes(savedEnvironment)) {
+      setSelectedEnvironment(savedEnvironment);
+    }
+
+    const savedNetwork = localStorage.getItem('selectedNetwork') as Network | null;
+    if (savedNetwork && networks.includes(savedNetwork)) {
+      setSelectedNetwork(savedNetwork);
+    }
   }, []);
 
   const fetchArtifacts = async () => {
@@ -125,6 +134,9 @@ const DeploymentWizard = () => {
       setDeploymentSuccess(null);
       setDeploymentTxHash(null);
       setDeploymentLogs([]);
+      // Clear persisted preferences on finish
+      localStorage.removeItem('selectedEnvironment');
+      localStorage.removeItem('selectedNetwork');
     }
   };
 
@@ -177,6 +189,19 @@ const DeploymentWizard = () => {
       setDeploying(false);
     }
   };
+
+  // Persist environment and network selections on change
+  useEffect(() => {
+    if (selectedEnvironment) {
+      localStorage.setItem('selectedEnvironment', selectedEnvironment);
+    }
+  }, [selectedEnvironment]);
+
+  useEffect(() => {
+    if (selectedNetwork) {
+      localStorage.setItem('selectedNetwork', selectedNetwork);
+    }
+  }, [selectedNetwork]);
 
   return (
     <div className="max-w-xl mx-auto p-4 space-y-6 bg-white rounded shadow">

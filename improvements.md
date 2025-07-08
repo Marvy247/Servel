@@ -5,17 +5,17 @@
 - Include artifact selection, environment/network selection, deployment progress, verification, and testing steps.
 - Add progress indicators and clear instructions for each step.
 
-## 2. Auto-detect Deployed Contract Addresses
+[done] 2. Auto-detect Deployed Contract Addresses
 - Implement backend logic to capture deployed contract addresses automatically.
 - Update frontend to pre-fill verification forms with detected addresses.
 - Reduce manual input and errors.
 
-## 3. Real-time Deployment Logs and Status Updates
+[done] 3. Real-time Deployment Logs and Status Updates
 - Stream deployment logs from backend to frontend in real-time.
 - Display detailed status and error messages during deployment.
 - Allow users to monitor deployment progress live.
 
-## 4. Environment and Network Selection
+[done] 4. Environment and Network Selection
 - Add UI controls for selecting deployment environment (production, staging, development).
 - Support multiple blockchain networks with easy switching.
 - Persist user preferences for environment and network.
