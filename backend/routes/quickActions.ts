@@ -78,7 +78,9 @@ router.post('/deploy', async (req, res) => {
 
     // TODO: Add authentication/authorization here
 
-    const deployment = await deploymentService.deployContract(artifact, { name: 'anvil', rpcUrl });
+    const projectId = req.body.projectId || 'default';
+
+    const deployment = await deploymentService.deployContract(artifact, { name: 'anvil', rpcUrl }, projectId);
 
     console.log('Deployment transaction hash:', deployment.txHash);
     console.log('Deployed contract address:', deployment.address);

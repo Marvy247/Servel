@@ -105,9 +105,21 @@ router.get('/:projectId/addresses', async (req, res) => {
   try {
     const allDeployments = deploymentService.getTrackedDeployments();
     console.log('Tracked deployments:', allDeployments);
+
+    // Remove fallback to current time for lastDeployed to ensure accurate timestamps
+    const deploymentsWithTimestamp = Object.fromEntries(
+      Object.entries(allDeployments).map(([network, deployments]) => [
+        network,
+        deployments.map(deployment => ({
+          ...deployment,
+          lastDeployed: deployment.lastDeployed
+        }))
+      ])
+    );
+
     res.json({
       success: true,
-      data: allDeployments,
+      data: deploymentsWithTimestamp,
       timestamp: new Date().toISOString()
     });
   } catch (error) {

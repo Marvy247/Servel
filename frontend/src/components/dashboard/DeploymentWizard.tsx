@@ -95,6 +95,13 @@ const DeploymentWizard = () => {
         title: 'Deployment process completed',
         variant: 'default',
       });
+      // Reset wizard to step 1 after finishing
+      setStep(1);
+      setSelectedArtifact(null);
+      setSelectedEnvironment(null);
+      setSelectedNetwork(null);
+      setDeploymentSuccess(null);
+      setDeploymentTxHash(null);
     }
   };
 

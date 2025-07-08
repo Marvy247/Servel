@@ -62,15 +62,15 @@ export function ContractsList({ projectId }: ContractsListProps) {
 
         // Flatten the deployments object into an array
         const flattenedContracts: Contract[] = []
-        for (const network in data) {
-          if (Array.isArray(data[network])) {
-            data[network].forEach((contract: any) => {
+        for (const network in data.data) {
+          if (Array.isArray(data.data[network])) {
+            data.data[network].forEach((contract: any) => {
               flattenedContracts.push({
                 name: contract.contractName || 'Unknown',
                 address: contract.address,
                 network: network,
                 verified: false, // or derive from contract data if available
-                lastDeployed: '' // no timestamp in this endpoint
+                lastDeployed: contract.lastDeployed || ''
               })
             })
           }
@@ -131,7 +131,13 @@ export function ContractsList({ projectId }: ContractsListProps) {
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {contract.lastDeployed ? new Date(contract.lastDeployed).toLocaleString() : ''}
+                  {contract.lastDeployed ? (() => {
+                    const date = new Date(contract.lastDeployed);
+                    if (isNaN(date.getTime())) {
+                      return contract.lastDeployed; // fallback to raw string if invalid date
+                    }
+                    return date.toLocaleString();
+                  })() : ''}
                 </td>
               </tr>
             ))}

@@ -56,12 +56,14 @@ export class DeploymentService {
             network: 'localhost'
           }
         );
-        this.tracker.trackDeployment('localhost', {
+        this.tracker.trackDeployment('default', 'localhost', {
+          contractName: artifact.contractName,
           address: deployment.address,
           abi: artifact.abi,
           bytecode: artifact.bytecode,
           deployedBytecode: '',
-          network: 'localhost'
+          network: 'localhost',
+          lastDeployed: new Date().toISOString()
         });
         // Broadcast deployment event
         if (this.eventListenerService) {
@@ -83,7 +85,7 @@ export class DeploymentService {
     }
   }
 
-  public async deployContract(artifact: any, network: {name: string, rpcUrl: string}) {
+  public async deployContract(artifact: any, network: {name: string, rpcUrl: string}, projectId: string = 'default') {
     try {
       const provider = new ethers.JsonRpcProvider(network.rpcUrl);
       // Use Anvil default private key if PRIVATE_KEY env var is not set
@@ -111,12 +113,14 @@ export class DeploymentService {
       }
 
       const deployedAddress = await contract.getAddress();
-      this.tracker.trackDeployment(network.name, {
+      this.tracker.trackDeployment(projectId, network.name, {
+        contractName: artifact.contractName,
         address: deployedAddress,
         abi: artifact.abi,
         bytecode: artifact.bytecode,
         deployedBytecode: '',
-        network: network.name
+        network: network.name,
+        lastDeployed: new Date().toISOString()
       });
       console.log('Deployment tracked:', deployedAddress, 'on network:', network.name);
       // Broadcast deployment event

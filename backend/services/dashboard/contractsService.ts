@@ -6,23 +6,25 @@ export interface Contract {
   lastDeployed: string;
 }
 
-// Mock contracts data for MVP
+import { DeploymentService } from '../deployment';
+
 export async function getContracts(projectId: string): Promise<Contract[]> {
-  // In real implementation, fetch contracts from database or blockchain explorer
-  return [
-    {
-      name: 'ContractA',
-      address: '0x1111111111111111111111111111111111111111',
-      network: 'Sepolia',
-      verified: true,
-      lastDeployed: new Date().toISOString(),
-    },
-    {
-      name: 'ContractB',
-      address: '0x2222222222222222222222222222222222222222',
-      network: 'Sepolia',
-      verified: false,
-      lastDeployed: new Date().toISOString(),
-    },
-  ];
+  const deploymentService = DeploymentService.getInstance();
+  const deployments = deploymentService.getTrackedDeployments();
+
+  const contracts: Contract[] = [];
+
+  for (const [network, artifacts] of Object.entries(deployments)) {
+    for (const artifact of artifacts) {
+      contracts.push({
+        name: artifact.contractName || 'Unknown',
+        address: artifact.address,
+        network: artifact.network,
+        verified: false, // DeploymentArtifact does not have verified property
+        lastDeployed: artifact.lastDeployed || new Date().toISOString(),
+      });
+    }
+  }
+
+  return contracts;
 }

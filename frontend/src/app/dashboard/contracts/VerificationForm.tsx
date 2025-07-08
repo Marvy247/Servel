@@ -28,6 +28,8 @@ const VerificationForm: React.FC<VerificationFormProps> = ({ projectId }) => {
         const response = await fetch(`/api/dashboard/contracts?projectId=${projectId}`);
         const data = await response.json();
 
+        console.log('VerificationForm fetched contracts:', data);
+
         // data is Record<string, Contract[]>
         setContracts(data);
 
@@ -35,6 +37,7 @@ const VerificationForm: React.FC<VerificationFormProps> = ({ projectId }) => {
         const firstNetwork = Object.keys(data)[0];
         if (firstNetwork && data[firstNetwork].length > 0) {
           setSelectedAddress(data[firstNetwork][0].address);
+          console.log('VerificationForm selectedAddress set to:', data[firstNetwork][0].address);
         }
       } catch (err) {
         setError('Failed to load deployed contract addresses.');
@@ -65,25 +68,30 @@ const VerificationForm: React.FC<VerificationFormProps> = ({ projectId }) => {
   }
 
   return (
-    <form onSubmit={handleSubmit}>
-      <label htmlFor="contractAddress">Select Contract Address to Verify:</label>
-      <select
-        id="contractAddress"
-        value={selectedAddress}
-        onChange={handleAddressChange}
-        required
-      >
-        {Object.entries(contracts).map(([network, contractsList]) =>
-          Array.isArray(contractsList) ? contractsList.map((contract) => (
-            <option key={contract.address} value={contract.address}>
-              {network} - {contract.address}
-            </option>
-          )) : null
-        )}
-      </select>
-      <button type="submit">Verify Contract</button>
-    </form>
-  );
+    <>
+      {console.log('VerificationForm contracts state:', contracts)}
+      {console.log('VerificationForm selectedAddress:', selectedAddress)}
+      <form onSubmit={handleSubmit}>
+        <label htmlFor="contractAddress">Select Contract Address to Verify:</label>
+        <select
+          id="contractAddress"
+          value={selectedAddress}
+          onChange={handleAddressChange}
+          required
+        >
+          <option value="" disabled>Select a contract address</option>
+          {Object.entries(contracts).map(([network, contractsList]) =>
+            Array.isArray(contractsList) ? contractsList.map((contract) => (
+              <option key={contract.address} value={contract.address}>
+                {network} - {contract.address}
+              </option>
+            )) : null
+          )}
+        </select>
+        <button type="submit">Verify Contract</button>
+      </form>
+    </>
+  )
 };
 
 export default VerificationForm;

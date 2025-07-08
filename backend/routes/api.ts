@@ -22,8 +22,8 @@ router.get('/dashboard/contracts', async (req, res) => {
         name: artifact.contractName || 'Unknown',
         address: artifact.address,
         network: artifact.network,
-        verified: false, // default false, update if verification info available
-        lastDeployed: artifact.timestamp || new Date().toISOString()
+        verified: artifact.verified || false, // use actual verified status if available
+        lastDeployed: artifact.lastDeployed || new Date().toISOString()
       }));
     }
 
