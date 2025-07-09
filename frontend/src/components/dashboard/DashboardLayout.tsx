@@ -15,8 +15,12 @@ import { TestingSummary } from './TestingSummary';
 import { TestResults } from './TestResults';
 import { ContractsList } from './ContractsList';
 import DeploymentWizard from './DeploymentWizard';
+import WalletDropdown from './WalletDropdown';
+import ConnectWalletButton from '../ui/ConnectWalletButton';
+import { useWeb3 } from '../../providers/web3';
 
 const DashboardLayout: React.FC = () => {
+  const { address } = useWeb3();
   const [activeTab, setActiveTab] = useState<'interaction' | 'events' | 'monitor' | 'testing' | 'contracts' | 'deployment'>('interaction');
   const [ciStatus, setCiStatus] = useState<'success' | 'failed' | 'running'>('running');
   const [network, setNetwork] = useState<'sepolia' | 'anvil'>('sepolia');
@@ -41,6 +45,7 @@ const DashboardLayout: React.FC = () => {
             <button className="text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors">
               Documentation
             </button>
+            {address ? <WalletDropdown /> : <ConnectWalletButton />}
             <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 flex items-center justify-center text-white font-medium">
               U
             </div>
