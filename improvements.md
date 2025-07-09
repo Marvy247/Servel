@@ -25,7 +25,7 @@
 - Display commit info and links in deployment history.
 - Enable triggering deployments from GitHub actions or webhooks.
 
-## 6. Gas Usage Estimation and Optimization Tips
+[done] 6. Gas Usage Estimation and Optimization Tips
 - Estimate gas costs before deployment.
 - Provide optimization suggestions to reduce gas usage.
 - Display gas usage stats in deployment summary.

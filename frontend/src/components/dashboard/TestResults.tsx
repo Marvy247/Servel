@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
+import { FiCheckCircle, FiXCircle, FiSkipForward, FiClock, FiDownload, FiFileText, FiBarChart2, FiShield, FiZap } from 'react-icons/fi';
+import { FaGasPump, FaRandom, FaShieldAlt } from 'react-icons/fa';
 import { StatusBadge, type Status } from './StatusBadge';
 
 interface TestResult {
@@ -42,6 +44,22 @@ interface TestResultsProps {
   projectId: string;
 }
 
+const statusIcons = {
+  passed: <FiCheckCircle className="text-green-500" />,
+  failed: <FiXCircle className="text-red-500" />,
+  skipped: <FiSkipForward className="text-yellow-500" />,
+  pending: <FiClock className="text-blue-500" />
+};
+
+const testTypeColors = {
+  unit: 'bg-purple-100 text-purple-800',
+  integration: 'bg-green-100 text-green-800',
+  e2e: 'bg-yellow-100 text-yellow-800',
+  fuzz: 'bg-orange-100 text-orange-800',
+  invariant: 'bg-indigo-100 text-indigo-800',
+  security: 'bg-red-100 text-red-800'
+};
+
 export function TestResults({ projectId }: TestResultsProps) {
   const [results, setResults] = useState<TestResult[]>([]);
   const [stats, setStats] = useState<TestStats | null>(null);
@@ -63,6 +81,7 @@ export function TestResults({ projectId }: TestResultsProps) {
 
     const fetchResults = async () => {
       try {
+        setLoading(true);
         const [testResults, coverageData] = await Promise.all([
           fetch(`/api/dashboard/test-results?projectId=${projectId}`),
           fetch(`/api/dashboard/test-coverage?projectId=${projectId}`)
@@ -71,10 +90,8 @@ export function TestResults({ projectId }: TestResultsProps) {
         const resultsData = await handleResponse(testResults);
         const coverage = await handleResponse(coverageData);
         
-        // Start with base test results
         const combinedResults = [...(resultsData?.results || [])];
         
-        // Try to get slither results if available
         try {
           const slitherResponse = await fetch(`/api/dashboard/slither/results?projectId=${projectId}`);
           if (slitherResponse.ok) {
@@ -109,7 +126,6 @@ export function TestResults({ projectId }: TestResultsProps) {
       }
     };
 
-    // Initialize WebSocket connection
     const setupWebSocket = () => {
       const wsUrl = `ws://${window.location.host}/ws/test-results?projectId=${projectId}`;
       wsRef.current = new WebSocket(wsUrl);
@@ -124,14 +140,13 @@ export function TestResults({ projectId }: TestResultsProps) {
       };
 
       wsRef.current.onclose = () => {
-        // Fallback to polling if WebSocket closes
         setTimeout(setupWebSocket, 5000);
       };
     };
 
     setupWebSocket();
     fetchResults();
-    const interval = setInterval(fetchResults, 60000); // Refresh every minute
+    const interval = setInterval(fetchResults, 60000);
     
     return () => {
       clearInterval(interval);
@@ -154,138 +169,134 @@ export function TestResults({ projectId }: TestResultsProps) {
     pending: 'pending'
   };
 
-  if (loading) return <div>Loading test results...</div>;
-  if (error) return <div className="text-red-500">{error}</div>;
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-md">
+        <div className="flex items-center">
+          <FiXCircle className="text-red-500 mr-2" />
+          <h3 className="text-sm font-medium text-red-800">{error}</h3>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-medium">Test Results</h3>
-        <div className="flex flex-wrap gap-2">
-          {stats && (
-            <div className="flex items-center space-x-4 mr-4">
-              <span className="text-sm">
-                Coverage: <span className="font-medium">{stats.coverage}%</span>
-              </span>
-              <span className="text-sm">
-                Avg Duration: <span className="font-medium">{stats.avgDuration}ms</span>
-              </span>
-            </div>
-          )}
-          <div className="flex space-x-2">
-            <button
-              onClick={() => setFilter('all')}
-              className={`px-3 py-1 text-sm rounded ${filter === 'all' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100'}`}
-            >
-              All
-            </button>
-            <button
-              onClick={() => setFilter('passed')}
-              className={`px-3 py-1 text-sm rounded ${filter === 'passed' ? 'bg-green-100 text-green-800' : 'bg-gray-100'}`}
-            >
-              Passed
-            </button>
-            <button
-              onClick={() => setFilter('failed')}
-              className={`px-3 py-1 text-sm rounded ${filter === 'failed' ? 'bg-red-100 text-red-800' : 'bg-gray-100'}`}
-            >
-              Failed
-            </button>
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      {/* Header */}
+      <div className="border-b border-gray-100 p-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">Test Results</h2>
+            <p className="text-sm text-gray-500">Detailed test execution metrics and coverage</p>
           </div>
-          <div className="flex space-x-2">
-            <button
-              onClick={() => setTestType('all')}
-              className={`px-3 py-1 text-sm rounded ${testType === 'all' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100'}`}
-            >
-              All Types
-            </button>
-            <button
-              onClick={() => setTestType('unit')}
-              className={`px-3 py-1 text-sm rounded ${testType === 'unit' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100'}`}
-            >
-              Unit
-            </button>
-            <button
-              onClick={() => setTestType('integration')}
-              className={`px-3 py-1 text-sm rounded ${testType === 'integration' ? 'bg-green-100 text-green-800' : 'bg-gray-100'}`}
-            >
-              Integration
-            </button>
-            <button
-              onClick={() => setTestType('e2e')}
-              className={`px-3 py-1 text-sm rounded ${testType === 'e2e' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100'}`}
-            >
-              E2E
-            </button>
-            <button
-              onClick={() => setTestType('fuzz')}
-              className={`px-3 py-1 text-sm rounded ${testType === 'fuzz' ? 'bg-orange-100 text-orange-800' : 'bg-gray-100'}`}
-            >
-              Fuzz
-            </button>
-            <button
-              onClick={() => setTestType('invariant')}
-              className={`px-3 py-1 text-sm rounded ${testType === 'invariant' ? 'bg-indigo-100 text-indigo-800' : 'bg-gray-100'}`}
-            >
-              Invariant
-            </button>
-            <button
-              onClick={() => setTestType('security')}
-              className={`px-3 py-1 text-sm rounded ${testType === 'security' ? 'bg-red-100 text-red-800' : 'bg-gray-100'}`}
-            >
-              Security
-            </button>
+          
+          <div className="flex flex-wrap gap-3">
+            <div className="relative">
+              <select
+                value={filter}
+                onChange={(e) => setFilter(e.target.value as any)}
+                className="pl-3 pr-8 py-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="all">All Statuses</option>
+                <option value="passed">Passed</option>
+                <option value="failed">Failed</option>
+              </select>
+            </div>
+            
+            <div className="relative">
+              <select
+                value={testType}
+                onChange={(e) => setTestType(e.target.value as any)}
+                className="pl-3 pr-8 py-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="all">All Types</option>
+                <option value="unit">Unit</option>
+                <option value="integration">Integration</option>
+                <option value="e2e">End-to-End</option>
+                <option value="fuzz">Fuzz</option>
+                <option value="invariant">Invariant</option>
+                <option value="security">Security</option>
+              </select>
+            </div>
           </div>
         </div>
       </div>
 
+      {/* Stats Section */}
       {stats && (
-        <div className="bg-white p-4 rounded-lg border">
-          <h4 className="text-sm font-medium mb-2">Test Results Trend (Last 7 Days)</h4>
-          <div className="grid grid-cols-3 gap-4 mb-4">
-            <div className="p-4 bg-gray-50 rounded-lg">
-              <h5 className="text-sm font-medium mb-2">Test Coverage</h5>
-              <div className="flex items-center">
-                <div className="flex-1 h-4 bg-gray-200 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-green-500 transition-all duration-500"
-                    style={{ width: `${stats.coverage}%` }}
-                  />
+        <div className="p-6 border-b border-gray-100">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
+            <div className="bg-blue-50 p-5 rounded-xl border border-blue-100">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <FiBarChart2 className="text-blue-600" />
                 </div>
-                <span className="ml-2 text-sm font-medium">{stats.coverage}%</span>
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500">Test Coverage</h3>
+                  <p className="text-2xl font-bold text-gray-900">{stats.coverage}%</p>
+                </div>
+              </div>
+              <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-blue-500 transition-all duration-500"
+                  style={{ width: `${stats.coverage}%` }}
+                />
               </div>
             </div>
-            <div className="p-4 bg-gray-50 rounded-lg">
-              <h5 className="text-sm font-medium mb-2">Security Analysis</h5>
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Findings:</span>
-                <span className="font-medium">{stats.slitherFindings || 0}</span>
+
+            <div className="bg-purple-50 p-5 rounded-xl border border-purple-100">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2 bg-purple-100 rounded-lg">
+                  <FiShield className="text-purple-600" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500">Security Findings</h3>
+                  <p className="text-2xl font-bold text-gray-900">{stats.slitherFindings || 0}</p>
+                </div>
+              </div>
+              <div className="text-xs text-purple-600">
+                <span>From static analysis</span>
               </div>
             </div>
-            <div className="p-4 bg-gray-50 rounded-lg">
-              <h5 className="text-sm font-medium mb-2">Gas Usage</h5>
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Avg:</span>
-                <span className="font-medium">
-                  {stats.avgGasUsed !== null ? stats.avgGasUsed : 'N/A'}
-                </span>
-                <span className="text-sm">Max:</span>
-                <span className="font-medium">
-                  {stats.maxGasUsed !== null ? stats.maxGasUsed : 'N/A'}
-                </span>
+
+            <div className="bg-green-50 p-5 rounded-xl border border-green-100">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2 bg-green-100 rounded-lg">
+                  <FaGasPump className="text-green-600" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500">Gas Usage</h3>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {stats.avgGasUsed !== null ? Math.round(stats.avgGasUsed) : 'N/A'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex justify-between text-xs text-green-600">
+                <span>Avg</span>
+                <span>Max: {stats.maxGasUsed !== null ? Math.round(stats.maxGasUsed) : 'N/A'}</span>
               </div>
             </div>
           </div>
+
+          <h4 className="text-sm font-medium text-gray-700 mb-3">Test Trend (Last 7 Days)</h4>
           <div className="h-40 flex items-end space-x-1">
             {stats.history.map((day, index) => (
               <div key={index} className="flex-1 flex flex-col items-center">
                 <div className="flex-1 w-full flex items-end space-x-px">
                   <div 
-                    className="bg-green-100 w-full rounded-t-sm" 
+                    className="bg-green-100 w-full rounded-t-md" 
                     style={{ height: `${(day.passed / stats.total) * 100}%` }}
                   />
                   <div 
-                    className="bg-red-100 w-full rounded-t-sm" 
+                    className="bg-red-100 w-full rounded-t-md" 
                     style={{ height: `${(day.failed / stats.total) * 100}%` }}
                   />
                 </div>
@@ -298,68 +309,96 @@ export function TestResults({ projectId }: TestResultsProps) {
         </div>
       )}
 
-      <div className="space-y-2">
+      {/* Test Results List */}
+      <div className="p-6">
         {filteredResults.length === 0 ? (
-          <div className="text-gray-500">No test results found</div>
+          <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+            <FiBarChart2 className="text-3xl mb-2" />
+            <p>No test results match your filters</p>
+          </div>
         ) : (
-          filteredResults.map((result) => (
-            <div key={result.id} className="p-3 border rounded hover:bg-gray-50">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <StatusBadge status={statusMap[result.status]} />
-                  <span>{result.name}</span>
+          <div className="space-y-3">
+            {filteredResults.map((result) => (
+              <div 
+                key={result.id} 
+                className="p-4 border border-gray-200 rounded-lg hover:shadow-sm transition-shadow"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start gap-3">
+                    <div className="mt-0.5">
+                      {statusIcons[result.status]}
+                    </div>
+                    <div>
+                      <div className="font-medium">{result.name}</div>
+                      {result.type && (
+                        <span className={`text-xs px-2 py-1 rounded-full ${testTypeColors[result.type]} mt-1 inline-block`}>
+                          {result.type}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 text-sm text-gray-500">
+                    {result.duration && (
+                      <span className="flex items-center gap-1">
+                        <FiClock className="text-gray-400" />
+                        {result.duration}ms
+                      </span>
+                    )}
+                    {result.gasUsed !== undefined && (
+                      <span className="flex items-center gap-1" title="Gas used">
+                        <FaGasPump className="text-gray-400" />
+                        {result.gasUsed}
+                      </span>
+                    )}
+                    {result.fuzzRuns !== undefined && (
+                      <span className="flex items-center gap-1" title="Fuzz iterations">
+                        <FaRandom className="text-gray-400" />
+                        {result.fuzzRuns}
+                      </span>
+                    )}
+                    {result.invariantChecks !== undefined && (
+                      <span className="flex items-center gap-1" title="Invariant checks">
+                        <FaShieldAlt className="text-gray-400" />
+                        {result.invariantChecks}
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <div className="text-sm text-gray-500">
-                  <span className="font-medium">{result.duration}ms</span>
-                  {result.gasUsed !== undefined && (
-                    <span className="ml-2" title="Gas used">
-                      ⛽ {result.gasUsed}
-                    </span>
-                  )}
-                  {result.fuzzRuns !== undefined && (
-                    <span className="ml-2" title="Fuzz iterations">
-                      🔄 {result.fuzzRuns}
-                    </span>
-                  )}
-                  {result.invariantChecks !== undefined && (
-                    <span className="ml-2" title="Invariant checks">
-                      🛡️ {result.invariantChecks}
-                    </span>
-                  )}
-                  {result.coverage !== undefined && (
-                    <span className="ml-2" title={`Coverage: ${result.coverage.lines}% lines, ${result.coverage.functions}% functions, ${result.coverage.branches}% branches`}>
-                      📊 {result.coverage.lines}% lines ({result.coverage.functions}% fn)
-                    </span>
-                  )}
-                </div>
+
+                {(result.details || result.artifactUrl || result.logUrl) && (
+                  <div className="mt-3 pt-3 border-t border-gray-100">
+                    {result.details && (
+                      <p className="text-sm text-gray-600 mb-2">{result.details}</p>
+                    )}
+                    <div className="flex gap-3">
+                      {result.artifactUrl && (
+                        <a 
+                          href={result.artifactUrl} 
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs flex items-center gap-1 text-blue-600 hover:underline"
+                        >
+                          <FiDownload className="text-current" />
+                          Artifacts
+                        </a>
+                      )}
+                      {result.logUrl && (
+                        <a 
+                          href={result.logUrl} 
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs flex items-center gap-1 text-blue-600 hover:underline"
+                        >
+                          <FiFileText className="text-current" />
+                          Logs
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
-              {result.details && (
-                <div className="mt-2 text-sm text-gray-600">
-                  {result.details}
-                  {result.artifactUrl && (
-                    <a 
-                      href={result.artifactUrl} 
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="ml-2 text-blue-600 hover:underline"
-                    >
-                      Download Artifacts
-                    </a>
-                  )}
-                  {result.logUrl && (
-                    <a 
-                      href={result.logUrl} 
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="ml-2 text-blue-600 hover:underline"
-                    >
-                      View Logs
-                    </a>
-                  )}
-                </div>
-              )}
-            </div>
-          ))
+            ))}
+          </div>
         )}
       </div>
     </div>
