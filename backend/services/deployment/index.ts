@@ -3,7 +3,7 @@ import { ArtifactScanner } from './artifactScanner';
 import { VerificationService } from './verificationService';
 import { DeploymentArtifact } from '../../types';
 import { DeploymentTracker } from './deploymentTracker';
-
+import { getOptimizationSuggestions } from '../dashboard/gasOptimizationService';
 
 export * from './artifactScanner';
 export * from './verificationService';
@@ -108,7 +108,27 @@ export class DeploymentService {
       }
 
       const factory = new ethers.ContractFactory(artifact.abi, artifact.bytecode, wallet);
-      
+
+      // Estimate gas cost before deployment
+      let gasEstimate;
+      try {
+        const deployTransaction = await factory.getDeployTransaction();
+        gasEstimate = await wallet.estimateGas(deployTransaction);
+        this.eventListenerService?.broadcastToClients({
+          type: 'deployment-log',
+          data: `Estimated gas for deployment: ${gasEstimate.toString()}`
+        });
+      } catch (gasError) {
+        this.eventListenerService?.broadcastToClients({
+          type: 'deployment-log',
+          data: `Gas estimation failed: ${gasError instanceof Error ? gasError.message : String(gasError)}`
+        });
+        gasEstimate = null;
+      }
+
+      // Get optimization suggestions
+      const optimizationSuggestions = getOptimizationSuggestions(artifact.bytecode);
+
       this.eventListenerService?.broadcastToClients({
         type: 'deployment-log',
         data: `Deploying ${artifact.contractName} to ${network.name}...`
@@ -158,6 +178,8 @@ export class DeploymentService {
         address: deployedAddress,
         network: network.name,
         txHash: contract.deploymentTransaction()?.hash,
+        gasEstimate: gasEstimate ? gasEstimate.toString() : null,
+        optimizationSuggestions,
         timestamp: new Date().toISOString()
       };
     } catch (error) {

@@ -20,7 +20,7 @@
 - Support multiple blockchain networks with easy switching.
 - Persist user preferences for environment and network.
 
-## 5. GitHub / VCS Integration
+[done] 5. GitHub / VCS Integration
 - Link deployments to GitHub commits and branches.
 - Display commit info and links in deployment history.
 - Enable triggering deployments from GitHub actions or webhooks.
