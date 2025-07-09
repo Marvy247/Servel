@@ -3,6 +3,9 @@
 import { useState, useEffect } from 'react'
 import VerificationForm from '../../app/dashboard/contracts/VerificationForm'
 import { useDeploymentEvents } from '../../hooks/useDeploymentEvents'
+import { FiCheckCircle, FiAlertCircle, FiClock, FiCopy, FiExternalLink } from 'react-icons/fi'
+import { FaEthereum } from 'react-icons/fa'
+import { toast } from '../../hooks/use-toast'
 
 interface Contract {
   name: string
@@ -21,21 +24,26 @@ export function ContractsList({ projectId }: ContractsListProps) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text)
+    toast({
+      title: 'Copied to clipboard',
+      variant: 'default',
+    })
+  }
+
   useDeploymentEvents((deployment) => {
     setContracts((prevContracts) => {
-      // Check if contract already exists
       const exists = prevContracts.some(
         (c) => c.address === deployment.address && c.network === deployment.network
       )
       if (exists) {
-        // Update existing contract's lastDeployed timestamp
         return prevContracts.map((c) =>
           c.address === deployment.address && c.network === deployment.network
             ? { ...c, lastDeployed: deployment.timestamp }
             : c
         )
       } else {
-        // Add new contract to the list
         return [
           ...prevContracts,
           {
@@ -60,7 +68,6 @@ export function ContractsList({ projectId }: ContractsListProps) {
           throw new Error(data.error || 'Failed to fetch contracts')
         }
 
-        // Flatten the deployments object into an array
         const flattenedContracts: Contract[] = []
         for (const network in data.data) {
           if (Array.isArray(data.data[network])) {
@@ -69,7 +76,7 @@ export function ContractsList({ projectId }: ContractsListProps) {
                 name: contract.contractName || 'Unknown',
                 address: contract.address,
                 network: network,
-                verified: false, // or derive from contract data if available
+                verified: false,
                 lastDeployed: contract.lastDeployed || ''
               })
             })
@@ -89,61 +96,128 @@ export function ContractsList({ projectId }: ContractsListProps) {
 
   if (loading) {
     return (
-      <div className="flex justify-center py-4">
-        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900"></div>
+      <div className="flex justify-center py-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-4 border-blue-500 border-t-transparent"></div>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="text-red-500 p-4">
-        {error}
+      <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-md">
+        <div className="flex items-center">
+          <FiAlertCircle className="text-red-500 mr-2" />
+          <h3 className="text-sm font-medium text-red-800">{error}</h3>
+        </div>
       </div>
     )
   }
 
   return (
-    <>
-      <VerificationForm projectId={projectId} />
-      <div className="overflow-x-auto mt-6">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Address</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Network</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Deployed</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {contracts.map((contract) => (
-              <tr key={`${contract.address}-${contract.network}`}>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{contract.name}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">{contract.address}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{contract.network}</td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                    contract.verified ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                  }`}>
-                    {contract.verified ? 'Verified' : 'Unverified'}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {contract.lastDeployed ? (() => {
-                    const date = new Date(contract.lastDeployed);
-                    if (isNaN(date.getTime())) {
-                      return contract.lastDeployed; // fallback to raw string if invalid date
-                    }
-                    return date.toLocaleString();
-                  })() : ''}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    <div className="space-y-6">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-lg font-semibold text-gray-900">Contract Verification</h2>
+        </div>
+        <VerificationForm projectId={projectId} />
       </div>
-    </>
+
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-100">
+          <h2 className="text-lg font-semibold text-gray-900">Deployed Contracts</h2>
+          <p className="text-sm text-gray-500 mt-1">{contracts.length} contracts deployed</p>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-100">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contract</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Address</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Network</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Deployed</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {contracts.map((contract) => (
+                <tr key={`${contract.address}-${contract.network}`} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0 h-8 w-8 rounded-full bg-blue-50 flex items-center justify-center">
+                        <FaEthereum className="text-blue-500" />
+                      </div>
+                      <div className="ml-4">
+                        <div className="text-sm font-medium text-gray-900">{contract.name}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <span className="text-sm text-gray-900 font-mono">
+                        {contract.address.substring(0, 6)}...{contract.address.substring(38)}
+                      </span>
+                      <button 
+                        onClick={() => copyToClipboard(contract.address)}
+                        className="ml-2 text-gray-400 hover:text-gray-500 transition-colors"
+                      >
+                        <FiCopy className="h-4 w-4" />
+                      </button>
+                      <a 
+                        href={`https://etherscan.io/address/${contract.address}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="ml-2 text-gray-400 hover:text-blue-500 transition-colors"
+                      >
+                        <FiExternalLink className="h-4 w-4" />
+                      </a>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800 capitalize">
+                      {contract.network}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      {contract.verified ? (
+                        <FiCheckCircle className="text-green-500 mr-1.5" />
+                      ) : (
+                        <FiClock className="text-yellow-500 mr-1.5" />
+                      )}
+                      <span className="text-sm text-gray-900">
+                        {contract.verified ? 'Verified' : 'Pending Verification'}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center text-sm text-gray-500">
+                      <FiClock className="mr-1.5 text-gray-400" />
+                      {contract.lastDeployed ? (() => {
+                        const date = new Date(contract.lastDeployed);
+                        if (isNaN(date.getTime())) {
+                          return contract.lastDeployed;
+                        }
+                        return date.toLocaleString();
+                      })() : 'N/A'}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {contracts.length === 0 && !loading && (
+          <div className="p-12 text-center">
+            <div className="mx-auto h-16 w-16 text-gray-400 mb-4">
+              <FaEthereum className="w-full h-full" />
+            </div>
+            <h3 className="text-sm font-medium text-gray-900">No contracts deployed</h3>
+            <p className="mt-1 text-sm text-gray-500">Deploy your first contract to get started.</p>
+          </div>
+        )}
+      </div>
+    </div>
   )
 }
