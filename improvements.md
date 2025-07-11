@@ -30,7 +30,7 @@
 - Provide optimization suggestions to reduce gas usage.
 - Display gas usage stats in deployment summary.
 
-## 7. Notifications and Alerts
+[done] 7. Notifications and Alerts
 - Notify users of deployment success, failure, or issues.
 - Support email, in-app, or webhook notifications.
 - Allow users to configure notification preferences.

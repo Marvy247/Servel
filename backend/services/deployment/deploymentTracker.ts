@@ -4,8 +4,13 @@ export class DeploymentTracker {
   // Map projectId -> Map network -> DeploymentArtifact[]
   private deployments: Map<string, Map<string, DeploymentArtifact[]>> = new Map();
 
+  // Map projectId -> Map network -> Map contractName -> DeploymentArtifact[] (rollback history)
+  private rollbackHistory: Map<string, Map<string, Map<string, DeploymentArtifact[]>>> = new Map();
+
   trackDeployment(projectId: string, network: string, artifact: DeploymentArtifact): void {
-    console.log(`Tracking deployment for projectId=${projectId}, network=${network}, contract=${artifact.contractName}, lastDeployed=${artifact.lastDeployed}`);
+    if (!projectId || !network) {
+      throw new Error('projectId and network are required');
+    }
     if (!this.deployments.has(projectId)) {
       this.deployments.set(projectId, new Map());
     }
@@ -27,6 +32,28 @@ export class DeploymentTracker {
       existing.push(artifact);
     }
     projectDeployments.set(network, existing);
+
+    // Track rollback history
+    if (!this.rollbackHistory.has(projectId)) {
+      this.rollbackHistory.set(projectId, new Map());
+    }
+    const projectRollback = this.rollbackHistory.get(projectId)!;
+    if (!projectRollback.has(network)) {
+      projectRollback.set(network, new Map());
+    }
+    const networkRollback = projectRollback.get(network)!;
+    if (!artifact.contractName) {
+      // Optionally, throw an error or skip tracking if contractName is missing
+      return;
+    }
+    if (!networkRollback.has(artifact.contractName)) {
+      networkRollback.set(artifact.contractName, []);
+    }
+    const history = networkRollback.get(artifact.contractName)!;
+    // Add to rollback history if not duplicate address
+    if (!history.find(d => d.address === artifact.address)) {
+      history.push(artifact);
+    }
   }
 
   getDeployments(projectId: string, network: string): DeploymentArtifact[] {
@@ -48,5 +75,12 @@ export class DeploymentTracker {
       }
     }
     return all;
+  }
+
+  getRollbackHistory(projectId: string, network: string, contractName: string): DeploymentArtifact[] {
+    if (!projectId || !network || !contractName) {
+      return [];
+    }
+    return this.rollbackHistory.get(projectId)?.get(network)?.get(contractName) || [];
   }
 }

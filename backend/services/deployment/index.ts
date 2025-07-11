@@ -122,6 +122,93 @@ export class DeploymentService {
     }
   }
 
+  public async rollbackDeployment(projectId: string, network: string, contractName: string, targetAddress: string): Promise<void> {
+    // Rollback to a previous deployment version by targetAddress
+    const history = this.tracker.getRollbackHistory(projectId, network, contractName);
+    const targetDeployment = history.find(d => d.address === targetAddress);
+    if (!targetDeployment) {
+      throw new Error(`No deployment found for address ${targetAddress} to rollback`);
+    }
+    // Redeploy the target deployment's bytecode and abi
+    await this.deployContract({
+      contractName: targetDeployment.contractName,
+      abi: targetDeployment.abi,
+      bytecode: targetDeployment.bytecode,
+      deployedBytecode: targetDeployment.deployedBytecode
+    }, { name: network, rpcUrl: 'http://localhost:8545' }, projectId);
+    // Optionally, update tracker and notify users
+    this.tracker.trackDeployment(projectId, network, targetDeployment);
+    this.eventListenerService?.broadcastToClients({
+      type: 'rollback',
+      data: {
+        contractName,
+        address: targetAddress,
+        network,
+        timestamp: new Date().toISOString()
+      }
+    });
+    const userId = 'defaultUser';
+    const preferences = {
+      email: true,
+      inApp: true,
+      webhook: false,
+      emailAddress: 'user@example.com',
+      webhookUrl: ''
+    };
+    const subject = `Rollback Executed: ${contractName}`;
+    const message = `Contract ${contractName} was rolled back to address ${targetAddress} on network ${network}.`;
+    const webhookPayload = {
+      event: 'rollback_executed',
+      contractName,
+      address: targetAddress,
+      network,
+      timestamp: new Date().toISOString()
+    };
+    await notificationService.notifyUser(userId, preferences, subject, message, webhookPayload);
+  }
+
+  public async redeployContract(projectId: string, network: string, contractName: string): Promise<void> {
+    // Redeploy the latest deployment of the contract
+    const deployments = this.tracker.getRollbackHistory(projectId, network, contractName);
+    if (deployments.length === 0) {
+      throw new Error(`No deployments found for contract ${contractName} to redeploy`);
+    }
+    const latestDeployment = deployments[deployments.length - 1];
+    await this.deployContract({
+      contractName: latestDeployment.contractName,
+      abi: latestDeployment.abi,
+      bytecode: latestDeployment.bytecode,
+      deployedBytecode: latestDeployment.deployedBytecode
+    }, { name: network, rpcUrl: 'http://localhost:8545' }, projectId);
+    this.eventListenerService?.broadcastToClients({
+      type: 'redeploy',
+      data: {
+        contractName,
+        address: latestDeployment.address,
+        network,
+        timestamp: new Date().toISOString()
+      }
+    });
+    const userId = 'defaultUser';
+    const preferences = {
+      email: true,
+      inApp: true,
+      webhook: false,
+      emailAddress: 'user@example.com',
+      webhookUrl: ''
+    };
+    const subject = `Redeploy Executed: ${contractName}`;
+    const message = `Contract ${contractName} was redeployed to address ${latestDeployment.address} on network ${network}.`;
+    const webhookPayload = {
+      event: 'redeploy_executed',
+      contractName,
+      address: latestDeployment.address,
+      network,
+      timestamp: new Date().toISOString()
+    };
+    await notificationService.notifyUser(userId, preferences, subject, message, webhookPayload);
+  }
+
   public async deployContract(artifact: any, network: {name: string, rpcUrl: string}, projectId: string = 'default') {
     try {
       const provider = new ethers.JsonRpcProvider(network.rpcUrl);
