@@ -8,6 +8,7 @@ import { EventListenerService } from './services/events/eventListenerService';
 import { TestResultEventService } from './services/events/testResultEventService';
 import quickActionsRoutes from './routes/quickActions';
 import deploymentRoutes from './routes/deployment';
+import notificationRoutes from './routes/notification';
 
 const app = express();
 
@@ -29,6 +30,7 @@ app.use('/api', apiRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/quickActions', quickActionsRoutes);
 app.use('/api/deployment', deploymentRoutes);
+app.use('/api/notification', notificationRoutes);
 
 // Initialize WebSocket EventListenerService
 const providerUrl = process.env.PROVIDER_URL || 'http://localhost:8545';

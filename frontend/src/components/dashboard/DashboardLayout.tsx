@@ -19,6 +19,7 @@ import WalletDropdown from './WalletDropdown';
 import ConnectWalletButton from '../ui/ConnectWalletButton';
 import { useWeb3 } from '../../providers/web3';
 import { Web3Provider } from '../../providers/web3';
+import NotificationPreferences from './NotificationPreferences';
 
 const DashboardLayout: React.FC = () => {
   const { address } = useWeb3();
@@ -175,6 +176,10 @@ const DashboardLayout: React.FC = () => {
                   </div>
                 </div>
               </div>
+
+              {/* Notification Preferences */}
+              <NotificationPreferences />
+
             </div>
 
             {/* Main Content Area */}

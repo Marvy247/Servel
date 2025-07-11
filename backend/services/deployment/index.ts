@@ -4,6 +4,7 @@ import { VerificationService } from './verificationService';
 import { DeploymentArtifact } from '../../types';
 import { DeploymentTracker } from './deploymentTracker';
 import { getOptimizationSuggestions } from '../dashboard/gasOptimizationService';
+import { notificationService } from '../notificationService';
 
 export * from './artifactScanner';
 export * from './verificationService';
@@ -78,9 +79,45 @@ export class DeploymentService {
             }
           });
         }
+        // Notify user of deployment success
+        const userId = 'defaultUser';
+        const preferences = {
+          email: true,
+          inApp: true,
+          webhook: false,
+          emailAddress: 'user@example.com',
+          webhookUrl: ''
+        };
+        const subject = `Deployment Success: ${artifact.contractName}`;
+        const message = `Contract ${artifact.contractName} was deployed successfully at address ${deployment.address} on network localhost.`;
+        const webhookPayload = {
+          event: 'deployment_success',
+          contractName: artifact.contractName,
+          address: deployment.address,
+          network: 'localhost',
+          timestamp: new Date().toISOString()
+        };
+        await notificationService.notifyUser(userId, preferences, subject, message, webhookPayload);
       }
     } catch (error) {
       console.error('Deployment failed:', error);
+      // Notify user of deployment failure
+      const userId = 'defaultUser';
+      const preferences = {
+        email: true,
+        inApp: true,
+        webhook: false,
+        emailAddress: 'user@example.com',
+        webhookUrl: ''
+      };
+      const subject = 'Deployment Failure';
+      const message = `Deployment failed with error: ${error instanceof Error ? error.message : String(error)}`;
+      const webhookPayload = {
+        event: 'deployment_failure',
+        error: error instanceof Error ? error.message : String(error),
+        timestamp: new Date().toISOString()
+      };
+      await notificationService.notifyUser(userId, preferences, subject, message, webhookPayload);
       throw error;
     }
   }
@@ -150,6 +187,26 @@ export class DeploymentService {
           type: 'deployment-log',
           data: errorMsg
         });
+        // Notify user of deployment failure
+        const userId = 'defaultUser';
+        const preferences = {
+          email: true,
+          inApp: true,
+          webhook: false,
+          emailAddress: 'user@example.com',
+          webhookUrl: ''
+        };
+        const subject = `Deployment Failure: ${artifact.contractName}`;
+        const message = `Deployment of contract ${artifact.contractName} failed with error: ${errorMsg}`;
+        const webhookPayload = {
+          event: 'deployment_failure',
+          contractName: artifact.contractName,
+          network: network.name,
+          status: 'failure',
+          error: errorMsg,
+          timestamp: new Date().toISOString()
+        };
+        await notificationService.notifyUser(userId, preferences, subject, message, webhookPayload);
         throw waitError;
       }
 
