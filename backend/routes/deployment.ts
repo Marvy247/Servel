@@ -133,4 +133,62 @@ router.get('/:projectId/addresses', async (req, res) => {
   }
 });
 
+router.post('/:projectId/deploy', async (req, res) => {
+  try {
+    const { contractName, constructorArgs, network } = req.body;
+    if (!contractName || !network) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: contractName and network',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // Find contract metadata to get ABI and bytecode
+    const contractsMetadata = require('../services/dashboard/contractsMetadataService').getContractsMetadata();
+    const contractMetadata = contractsMetadata.find((c: any) => c.name === contractName);
+    if (!contractMetadata) {
+      return res.status(404).json({
+        success: false,
+        error: `Contract metadata not found for ${contractName}`,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // Load artifact from deployment service's scanner
+    // Access private scanner via a public method or workaround
+    const artifacts = await (deploymentService as any).scanner.scanArtifacts();
+    const artifact = artifacts.find((a: any) => a.contractName === contractName);
+    if (!artifact) {
+      return res.status(404).json({
+        success: false,
+        error: `Artifact not found for contract ${contractName}`,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // Deploy contract
+    const deploymentResult = await deploymentService.deployContract(
+      artifact,
+      { name: network, rpcUrl: process.env[`${network.toUpperCase()}_RPC_URL`] || 'http://localhost:8545' },
+      req.params.projectId,
+      constructorArgs || []
+    );
+
+    res.json({
+      success: true,
+      data: deploymentResult,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Deployment error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Deployment failed',
+      details: error instanceof Error ? error.message : String(error),
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 export default router;

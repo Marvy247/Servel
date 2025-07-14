@@ -8,6 +8,9 @@ import type { DashboardConfig, TestResult } from '../types/dashboard';
 import { getNetworkStatus } from '../services/dashboard/networkStatusService';
 import { getGasUsageStats } from '../services/dashboard/gasUsageService';
 import { getContracts } from '../services/dashboard/contractsService';
+import { getContractsMetadata } from '../services/dashboard/contractsMetadataService';
+import { DeploymentService } from '../services/deployment';
+import { EventListenerService } from '../services/events/eventListenerService';
 
 const router = express.Router();
 
@@ -15,6 +18,29 @@ const router = express.Router();
 router.use('/deployments', deploymentRoutes);
 import quickActionsRoutes from './quickActions';
 router.use('/quick-actions', quickActionsRoutes);
+
+// New GET /contractsMetadata endpoint to serve contract metadata
+router.get('/contractsMetadata', (req, res) => {
+  try {
+    const contractsMetadata = getContractsMetadata();
+    res.json({
+      success: true,
+      data: contractsMetadata,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch contracts metadata',
+      details: error instanceof Error ? error.message : String(error),
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+const deploymentService = DeploymentService.getInstance();
+const eventListenerService = new EventListenerService('http://localhost:8545', 8080);
+deploymentService.setEventListenerService(eventListenerService);
 
 router.get('/config', async (req, res) => {
   try {
@@ -91,7 +117,7 @@ router.put('/config', async (req, res) => {
   }
 });
 
-// New contracts endpoint
+// Existing contracts endpoint
 router.get('/contracts', async (req, res) => {
   try {
     const projectId = req.query.projectId as string;
@@ -105,6 +131,66 @@ router.get('/contracts', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to fetch contracts',
+      details: error instanceof Error ? error.message : String(error),
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// New POST /contracts/deploy endpoint
+router.post('/contracts/deploy', async (req, res) => {
+  try {
+    const { contractName, constructorParams, networkName, rpcUrl, projectId } = req.body;
+
+    if (!contractName || !networkName || !rpcUrl) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: contractName, networkName, rpcUrl',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // Get contract metadata
+    const contractsMetadata = getContractsMetadata();
+    const contractMeta = contractsMetadata.find(c => c.name === contractName);
+    if (!contractMeta) {
+      return res.status(404).json({
+        success: false,
+        error: `Contract metadata not found for ${contractName}`,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // Prepare artifact with constructor params (assuming constructorParams is an array matching metadata)
+    // For simplicity, we assume constructorParams are passed correctly and deploymentService.deployContract handles them.
+
+    // Create artifact object for deployment
+    const artifact = {
+      contractName: contractMeta.name,
+      abi: [], // ABI should be fetched or imported here; placeholder empty array
+      bytecode: '', // Bytecode should be fetched or imported here; placeholder empty string
+      deployedBytecode: ''
+    };
+
+    // TODO: Fetch ABI and bytecode for the contractName from artifacts or build system
+
+    // Deploy contract with constructor parameters
+    const deploymentResult = await deploymentService.deployContract(
+      artifact,
+      { name: networkName, rpcUrl },
+      projectId || 'default',
+      constructorParams || []
+    );
+
+    res.json({
+      success: true,
+      data: deploymentResult,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to deploy contract',
       details: error instanceof Error ? error.message : String(error),
       timestamp: new Date().toISOString()
     });
@@ -314,26 +400,6 @@ router.post('/github/webhook', verifyGitHubWebhook(process.env.GITHUB_WEBHOOK_SE
     res.status(500).json({
       success: false,
       error: 'Failed to process GitHub webhook',
-      details: error instanceof Error ? error.message : String(error),
-      timestamp: new Date().toISOString()
-    });
-  }
-});
-
-router.get('/github/actions/:runId/artifacts/:artifactId/download', async (req, res) => {
-  try {
-    const { runId, artifactId } = req.params;
-    const github = await getGitHubService();
-    const artifactData = await github.processArtifact(parseInt(artifactId));
-    
-    // Assuming artifactData is a buffer or stream of the zip file
-    res.setHeader('Content-Disposition', `attachment; filename=artifact-${artifactId}.zip`);
-    res.setHeader('Content-Type', 'application/zip');
-    res.send(artifactData);
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: 'Failed to download artifact',
       details: error instanceof Error ? error.message : String(error),
       timestamp: new Date().toISOString()
     });

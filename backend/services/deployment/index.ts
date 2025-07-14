@@ -209,7 +209,7 @@ export class DeploymentService {
     await notificationService.notifyUser(userId, preferences, subject, message, webhookPayload);
   }
 
-  public async deployContract(artifact: any, network: {name: string, rpcUrl: string}, projectId: string = 'default') {
+  public async deployContract(artifact: any, network: {name: string, rpcUrl: string}, projectId: string = 'default', constructorArgs: any[] = []) {
     try {
       const provider = new ethers.JsonRpcProvider(network.rpcUrl);
       // Use Anvil default private key if PRIVATE_KEY env var is not set
@@ -236,7 +236,7 @@ export class DeploymentService {
       // Estimate gas cost before deployment
       let gasEstimate;
       try {
-        const deployTransaction = await factory.getDeployTransaction();
+        const deployTransaction = await factory.getDeployTransaction(...constructorArgs);
         gasEstimate = await wallet.estimateGas(deployTransaction);
         this.eventListenerService?.broadcastToClients({
           type: 'deployment-log',
@@ -257,7 +257,7 @@ export class DeploymentService {
         type: 'deployment-log',
         data: `Deploying ${artifact.contractName} to ${network.name}...`
       });
-      const contract = await factory.deploy();
+      const contract = await factory.deploy(...constructorArgs);
       this.eventListenerService?.broadcastToClients({
         type: 'deployment-log',
         data: 'Contract deployment transaction sent, waiting for deployment...'

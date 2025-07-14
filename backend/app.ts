@@ -34,7 +34,7 @@ app.use('/api/notification', notificationRoutes);
 
 // Initialize WebSocket EventListenerService
 const providerUrl = process.env.PROVIDER_URL || 'http://localhost:8545';
-const wssPort = parseInt(process.env.WSS_PORT || '8080', 10);
+const wssPort = parseInt(process.env.WSS_PORT || '8081', 10);
 const eventListenerService = new EventListenerService(providerUrl, wssPort);
 
 // Set eventListenerService instance in DeploymentService

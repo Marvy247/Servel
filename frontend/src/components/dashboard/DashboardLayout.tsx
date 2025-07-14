@@ -20,6 +20,7 @@ import ConnectWalletButton from '../ui/ConnectWalletButton';
 import { useWeb3 } from '../../providers/web3';
 import { Web3Provider } from '../../providers/web3';
 import NotificationPreferences from './NotificationPreferences';
+import DeploymentPage from '../../app/dashboard/deployment-page';
 
 const DashboardLayout: React.FC = () => {
   const { address } = useWeb3();
@@ -68,7 +69,10 @@ const DashboardLayout: React.FC = () => {
                 <FiGitBranch className="text-gray-500" />
                 <span>main</span>
               </button>
-              <button className="px-4 py-2 bg-blue-600 rounded-lg text-sm font-medium text-white hover:bg-blue-700 transition-colors">
+              <button
+                className="px-4 py-2 bg-blue-600 rounded-lg text-sm font-medium text-white hover:bg-blue-700 transition-colors"
+                onClick={() => setActiveTab('deployment')}
+              >
                 New Deployment
               </button>
             </div>
@@ -294,7 +298,8 @@ const DashboardLayout: React.FC = () => {
                   </div>
                 ) : activeTab === 'deployment' ? (
                   <div className="p-6">
-                    <DeploymentWizard />
+                    {/* Replace DeploymentWizard with DeploymentPage */}
+                    <DeploymentPage />
                   </div>
                 ) : null}
               </div>
