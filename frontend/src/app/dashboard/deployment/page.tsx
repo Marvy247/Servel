@@ -1,6 +1,8 @@
+'use client';
+
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { useDeploymentEvents } from '../../hooks/useDeploymentEvents';
+import { useDeploymentEvents } from '../../../hooks/useDeploymentEvents';
 import { 
   DocumentTextIcon,
   CubeIcon,

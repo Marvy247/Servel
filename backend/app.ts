@@ -29,7 +29,6 @@ if (webhookSecret) {
 app.use('/api', apiRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/quickActions', quickActionsRoutes);
-app.use('/api/deployment', deploymentRoutes);
 app.use('/api/notification', notificationRoutes);
 
 // Initialize WebSocket EventListenerService

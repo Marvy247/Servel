@@ -39,8 +39,7 @@ router.get('/contractsMetadata', (req, res) => {
 });
 
 const deploymentService = DeploymentService.getInstance();
-const eventListenerService = new EventListenerService('http://localhost:8545', 8080);
-deploymentService.setEventListenerService(eventListenerService);
+// EventListenerService is initialized in app.ts
 
 router.get('/config', async (req, res) => {
   try {
@@ -137,15 +136,15 @@ router.get('/contracts', async (req, res) => {
   }
 });
 
-// New POST /contracts/deploy endpoint
-router.post('/contracts/deploy', async (req, res) => {
+// New POST /deployments/:projectId/deploy endpoint
+router.post('/deployments/:projectId/deploy', async (req, res) => {
   try {
-    const { contractName, constructorParams, networkName, rpcUrl, projectId } = req.body;
+    const { contractName, constructorArgs, network, rpcUrl, projectId } = req.body;
 
-    if (!contractName || !networkName || !rpcUrl) {
+    if (!contractName || !network) {
       return res.status(400).json({
         success: false,
-        error: 'Missing required fields: contractName, networkName, rpcUrl',
+        error: 'Missing required fields: contractName, network',
         timestamp: new Date().toISOString()
       });
     }
@@ -161,25 +160,26 @@ router.post('/contracts/deploy', async (req, res) => {
       });
     }
 
-    // Prepare artifact with constructor params (assuming constructorParams is an array matching metadata)
-    // For simplicity, we assume constructorParams are passed correctly and deploymentService.deployContract handles them.
-
-    // Create artifact object for deployment
-    const artifact = {
-      contractName: contractMeta.name,
-      abi: [], // ABI should be fetched or imported here; placeholder empty array
-      bytecode: '', // Bytecode should be fetched or imported here; placeholder empty string
-      deployedBytecode: ''
-    };
-
-    // TODO: Fetch ABI and bytecode for the contractName from artifacts or build system
+    // Get the artifact for the contract
+    const path = require('path');
+    const contractsPath = path.join(__dirname, '../../contracts');
+    const scanner = new (require('../services/deployment/artifactScanner').ArtifactScanner)('http://localhost:8545', contractsPath);
+    const artifact = await scanner.getArtifactByName(contractName);
+    
+    if (!artifact) {
+      return res.status(404).json({
+        success: false,
+        error: `Artifact not found for contract ${contractName}`,
+        timestamp: new Date().toISOString()
+      });
+    }
 
     // Deploy contract with constructor parameters
     const deploymentResult = await deploymentService.deployContract(
       artifact,
-      { name: networkName, rpcUrl },
+      { name: network, rpcUrl: process.env[`${network.toUpperCase()}_RPC_URL`] || rpcUrl || 'http://localhost:8545' },
       projectId || 'default',
-      constructorParams || []
+      constructorArgs || []
     );
 
     res.json({

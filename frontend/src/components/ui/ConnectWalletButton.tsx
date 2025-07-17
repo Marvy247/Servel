@@ -5,9 +5,10 @@ import { useWeb3 } from '../../providers/web3';
 import { Button } from './button';
 import { Wallet, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import WalletDropdown from '../dashboard/WalletDropdown';
 
 const ConnectWalletButton: React.FC = () => {
-  const { connect } = useWeb3();
+  const { connect, address } = useWeb3();
   const [isConnecting, setIsConnecting] = React.useState(false);
 
   const handleConnect = async () => {
@@ -23,6 +24,12 @@ const ConnectWalletButton: React.FC = () => {
     }
   };
 
+  // If wallet is connected, show the dropdown instead
+  if (address) {
+    return <WalletDropdown />;
+  }
+
+  // If wallet is not connected, show the connect button
   return (
     <Button
       onClick={handleConnect}

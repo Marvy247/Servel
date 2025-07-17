@@ -9,7 +9,7 @@ const router = express.Router();
 
 // Initialize services
 const providerUrl = process.env.PROVIDER_URL || 'http://localhost:8545';
-const wssPort = parseInt(process.env.WSS_PORT || '8080', 10);
+const wssPort = parseInt(process.env.WSS_PORT || '8081', 10);
 const eventListenerService = new EventListenerService(providerUrl, wssPort);
 const testResultEventService = new TestResultEventService(eventListenerService);
 
@@ -27,7 +27,7 @@ router.get('/test-results', async (req, res) => {
 // Get test coverage metrics
 router.get('/test-coverage', async (req, res) => {
   try {
-    const coverage = await CoverageService.getCurrentCoverage();
+    const coverage = await CoverageService.getCurrentCoverage('default');
     res.json(coverage);
   } catch (error) {
     console.error('Failed to get test coverage:', error);
@@ -38,7 +38,10 @@ router.get('/test-coverage', async (req, res) => {
 // Get Slither analysis results
 router.get('/slither/results', async (req, res) => {
   try {
-    const results = await SlitherService.getLatestResults();
+    const results = await SlitherService.analyze({ 
+      target: 'contracts/src/Marketplace.sol',
+      rootPath: process.cwd()
+    });
     res.json(results);
   } catch (error) {
     console.error('Failed to get Slither results:', error);
@@ -49,7 +52,7 @@ router.get('/slither/results', async (req, res) => {
 // Get historical test data
 router.get('/test-history', async (req, res) => {
   try {
-    const history = await TestHistoryService.getTestHistory();
+    const history = await TestHistoryService.getTestHistory('default');
     res.json(history);
   } catch (error) {
     console.error('Failed to get test history:', error);
