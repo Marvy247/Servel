@@ -9,6 +9,7 @@ import { TestResultEventService } from './services/events/testResultEventService
 import quickActionsRoutes from './routes/quickActions';
 import deploymentRoutes from './routes/deployment';
 import notificationRoutes from './routes/notification';
+import contractsRoutes from './routes/dashboard/contracts';
 
 const app = express();
 

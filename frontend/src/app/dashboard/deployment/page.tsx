@@ -138,7 +138,11 @@ const DeploymentPage: React.FC = () => {
         network,
       });
       
-      if (!response.data.success) {
+      if (response.data.success) {
+        setDeployedInfo(response.data.data);
+        setDeploying(false);
+        setLogs(prev => [...prev, `Deployment completed successfully!`]);
+      } else {
         setLogs(prev => [...prev, `Deployment failed: ${response.data.error}`]);
         setDeploying(false);
       }
@@ -424,7 +428,7 @@ const DeploymentPage: React.FC = () => {
                     </div>
                   </div>
 
-                  {deployedInfo.optimizationSuggestions && (
+                  {deployedInfo.optimizationSuggestions && Array.isArray(deployedInfo.optimizationSuggestions) && deployedInfo.optimizationSuggestions.length > 0 && (
                     <div className="mt-6 bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-r-lg">
                       <div className="flex">
                         <div className="flex-shrink-0">
@@ -436,8 +440,8 @@ const DeploymentPage: React.FC = () => {
                           <h3 className="text-sm font-medium text-yellow-800">Optimization Suggestions</h3>
                           <div className="mt-2 text-sm text-yellow-700">
                             <ul className="list-disc pl-5 space-y-1">
-                              {deployedInfo.optimizationSuggestions.map((suggestion: string, i: number) => (
-                                <li key={i}>{suggestion}</li>
+                              {deployedInfo.optimizationSuggestions.map((suggestion: any, i: number) => (
+                                <li key={i}>{typeof suggestion === 'string' ? suggestion : JSON.stringify(suggestion)}</li>
                               ))}
                             </ul>
                           </div>

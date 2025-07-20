@@ -1,6 +1,7 @@
 import express from 'express';
 import { getDeployments, getDeploymentById, getEnvironments, getBranches } from '../services/dashboard/deploymentService';
 import { DeploymentService } from '../services/deployment';
+import { getContractsMetadata } from '../services/dashboard/contractsMetadataService';
 
 const router = express.Router();
 const deploymentService = DeploymentService.getInstance();
@@ -133,9 +134,12 @@ router.get('/:projectId/addresses', async (req, res) => {
   }
 });
 
+// Fixed POST /:projectId/deploy endpoint
 router.post('/:projectId/deploy', async (req, res) => {
   try {
-    const { contractName, constructorArgs, network } = req.body;
+    const { contractName, constructorArgs, network, rpcUrl } = req.body;
+    const { projectId } = req.params;
+
     if (!contractName || !network) {
       return res.status(400).json({
         success: false,
@@ -144,8 +148,8 @@ router.post('/:projectId/deploy', async (req, res) => {
       });
     }
 
-    // Find contract metadata to get ABI and bytecode
-    const contractsMetadata = require('../services/dashboard/contractsMetadataService').getContractsMetadata();
+    // Find contract metadata to get basic info
+    const contractsMetadata = getContractsMetadata();
     const contractMetadata = contractsMetadata.find((c: any) => c.name === contractName);
     if (!contractMetadata) {
       return res.status(404).json({
@@ -155,10 +159,18 @@ router.post('/:projectId/deploy', async (req, res) => {
       });
     }
 
-    // Load artifact from deployment service's scanner
-    // Access private scanner via a public method or workaround
-    const artifacts = await (deploymentService as any).scanner.scanArtifacts();
-    const artifact = artifacts.find((a: any) => a.contractName === contractName);
+    // Use the deployment service's scanner properly
+    // Access the scanner through the deployment service instance
+    const scanner = (deploymentService as any).scanner;
+    if (!scanner) {
+      return res.status(500).json({
+        success: false,
+        error: 'Artifact scanner not initialized',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    const artifact = await scanner.getArtifactByName(contractName);
     if (!artifact) {
       return res.status(404).json({
         success: false,
@@ -170,8 +182,11 @@ router.post('/:projectId/deploy', async (req, res) => {
     // Deploy contract
     const deploymentResult = await deploymentService.deployContract(
       artifact,
-      { name: network, rpcUrl: process.env[`${network.toUpperCase()}_RPC_URL`] || 'http://localhost:8545' },
-      req.params.projectId,
+      { 
+        name: network, 
+        rpcUrl: rpcUrl || process.env[`${network.toUpperCase()}_RPC_URL`] || 'http://localhost:8545' 
+      },
+      projectId,
       constructorArgs || []
     );
 

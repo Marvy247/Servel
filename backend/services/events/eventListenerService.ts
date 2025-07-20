@@ -61,21 +61,57 @@ export class EventListenerService {
     const sub: EventSubscription = { id: subscriptionId, filter, callback }
     ACTIVE_SUBSCRIPTIONS.set(subscriptionId, sub)
 
-    // Start listening
-    const contract = new ethers.Contract(
-      filter.contractAddress, 
-      DEFAULT_EVENT_TYPES, 
-      this.provider
-    )
-    contract.on(filter.eventName || '*', (from, to, value, event) => {
-      callback({
-        event: filter.eventName || '*',
-        address: filter.contractAddress,
-        blockNumber: event.blockNumber,
-        transactionHash: event.transactionHash,
-        args: { from, to, value }
-      })
-    })
+    // Handle special deployment events
+    if (filter.eventName === 'deployment' || filter.contractAddress === '*') {
+      // For deployment events, we don't need a contract - just acknowledge the subscription
+      ws.send(JSON.stringify({ 
+        subscribed: true, 
+        subscriptionId,
+        filter,
+        message: 'Deployment events subscription active'
+      }))
+      return
+    }
+
+    // Start listening for actual contract events
+    if (filter.contractAddress && filter.contractAddress !== '*') {
+      try {
+        const contract = new ethers.Contract(
+          filter.contractAddress, 
+          DEFAULT_EVENT_TYPES, 
+          this.provider
+        )
+        
+        const eventName = filter.eventName || '*'
+        if (eventName !== '*') {
+          contract.on(eventName, (...args: any[]) => {
+            const event = args[args.length - 1]
+            callback({
+              event: eventName,
+              address: filter.contractAddress,
+              blockNumber: event.blockNumber,
+              transactionHash: event.transactionHash,
+              args: args.slice(0, -1)
+            })
+          })
+        } else {
+          contract.on('*', (eventName: string, ...args: any[]) => {
+            const event = args[args.length - 1]
+            callback({
+              event: eventName,
+              address: filter.contractAddress,
+              blockNumber: event.blockNumber,
+              transactionHash: event.transactionHash,
+              args: args.slice(0, -1)
+            })
+          })
+        }
+      } catch (error) {
+        ws.send(JSON.stringify({ 
+          error: `Failed to subscribe to contract events: ${error instanceof Error ? error.message : String(error)}`
+        }))
+      }
+    }
 
     ws.send(JSON.stringify({ 
       subscribed: true, 
@@ -88,23 +124,36 @@ export class EventListenerService {
     if (subscriptionId) {
       const sub = ACTIVE_SUBSCRIPTIONS.get(subscriptionId)
       if (sub) {
-        const contract = new ethers.Contract(
-          sub.filter.contractAddress, 
-          DEFAULT_EVENT_TYPES, 
-          this.provider
-        )
-        contract.off(sub.filter.eventName || '*', sub.callback)
+        // Only try to remove contract listeners if it's a real contract event
+        if (sub.filter.contractAddress && sub.filter.contractAddress !== '*') {
+          try {
+            const contract = new ethers.Contract(
+              sub.filter.contractAddress, 
+              DEFAULT_EVENT_TYPES, 
+              this.provider
+            )
+            contract.off(sub.filter.eventName || '*', sub.callback)
+          } catch (error) {
+            console.error('Error unsubscribing from contract events:', error)
+          }
+        }
         ACTIVE_SUBSCRIPTIONS.delete(subscriptionId)
       }
     } else {
       // Remove all subscriptions for this client
       for (const [id, sub] of ACTIVE_SUBSCRIPTIONS) {
-        const contract = new ethers.Contract(
-          sub.filter.contractAddress, 
-          DEFAULT_EVENT_TYPES, 
-          this.provider
-        )
-        contract.off(sub.filter.eventName || '*', sub.callback)
+        if (sub.filter.contractAddress && sub.filter.contractAddress !== '*') {
+          try {
+            const contract = new ethers.Contract(
+              sub.filter.contractAddress, 
+              DEFAULT_EVENT_TYPES, 
+              this.provider
+            )
+            contract.off(sub.filter.eventName || '*', sub.callback)
+          } catch (error) {
+            console.error('Error unsubscribing from contract events:', error)
+          }
+        }
         ACTIVE_SUBSCRIPTIONS.delete(id)
       }
     }

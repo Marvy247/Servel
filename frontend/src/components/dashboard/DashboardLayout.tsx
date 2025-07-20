@@ -20,7 +20,7 @@ import ConnectWalletButton from '../ui/ConnectWalletButton';
 import { useWeb3 } from '../../providers/web3';
 import { Web3Provider } from '../../providers/web3';
 import NotificationPreferences from './NotificationPreferences';
-import DeploymentPage from '../../app/dashboard/deployment-page';
+import DeploymentPage from '../../app/dashboard/deployment/page';
 
 const DashboardLayout: React.FC = () => {
   const { address } = useWeb3();

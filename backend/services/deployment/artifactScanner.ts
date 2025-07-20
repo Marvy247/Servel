@@ -7,7 +7,7 @@ export class ArtifactScanner {
   private provider: JsonRpcProvider;
   private contractsPath: string;
 
-  constructor(rpcUrl: string, contractsPath: string = path.join(__dirname, '../../contracts')) {
+  constructor(rpcUrl: string, contractsPath: string = path.join(__dirname, '../../../contracts')) {
     this.provider = new JsonRpcProvider(rpcUrl);
     this.contractsPath = contractsPath;
   }
@@ -28,6 +28,11 @@ export class ArtifactScanner {
     const outPath = path.join(this.contractsPath, 'out');
 
     try {
+      if (!fs.existsSync(outPath)) {
+        console.warn(`Contracts output directory not found: ${outPath}`);
+        return artifacts;
+      }
+
       // Read all contract directories in the out folder
       const contractDirs = fs.readdirSync(outPath, { withFileTypes: true })
         .filter(dirent => dirent.isDirectory())
@@ -39,18 +44,22 @@ export class ArtifactScanner {
           .filter(file => file.endsWith('.json') && !file.startsWith('.'));
         
         for (const jsonFile of jsonFiles) {
-          const artifactPath = path.join(contractPath, jsonFile);
-          const artifactData = JSON.parse(fs.readFileSync(artifactPath, 'utf8'));
-          
-          if (artifactData.abi && artifactData.bytecode && artifactData.bytecode.object) {
-            artifacts.push({
-              contractName: path.basename(jsonFile, '.json'),
-              address: '',
-              abi: artifactData.abi,
-              bytecode: artifactData.bytecode.object,
-              deployedBytecode: artifactData.deployedBytecode?.object || '',
-              network: ''
-            });
+          try {
+            const artifactPath = path.join(contractPath, jsonFile);
+            const artifactData = JSON.parse(fs.readFileSync(artifactPath, 'utf8'));
+            
+            if (artifactData.abi && artifactData.bytecode && artifactData.bytecode.object) {
+              artifacts.push({
+                contractName: path.basename(jsonFile, '.json'),
+                address: '',
+                abi: artifactData.abi,
+                bytecode: artifactData.bytecode.object,
+                deployedBytecode: artifactData.deployedBytecode?.object || '',
+                network: ''
+              });
+            }
+          } catch (parseError) {
+            console.warn(`Failed to parse artifact ${jsonFile}:`, parseError);
           }
         }
       }
@@ -65,59 +74,97 @@ export class ArtifactScanner {
     const outPath = path.join(this.contractsPath, 'out');
     
     try {
-      // First, try the direct path
-      const contractPath = path.join(outPath, `${contractName}.sol`);
-      if (fs.existsSync(contractPath)) {
-        const jsonFiles = fs.readdirSync(contractPath)
-          .filter(file => file.endsWith('.json') && !file.startsWith('.'));
-        
-        for (const jsonFile of jsonFiles) {
-          if (path.basename(jsonFile, '.json') === contractName) {
-            const artifactPath = path.join(contractPath, jsonFile);
-            const artifactData = JSON.parse(fs.readFileSync(artifactPath, 'utf8'));
-            
-            if (artifactData.abi && artifactData.bytecode && artifactData.bytecode.object) {
-              return {
-                contractName,
-                address: '',
-                abi: artifactData.abi,
-                bytecode: artifactData.bytecode.object,
-                deployedBytecode: artifactData.deployedBytecode?.object || '',
-                network: ''
-              };
-            }
-          }
+      if (!fs.existsSync(outPath)) {
+        console.warn(`Contracts output directory not found: ${outPath}`);
+        return null;
+      }
+
+      // Try multiple strategies to find the artifact
+
+      // Strategy 1: Direct file lookup
+      const directPath = path.join(outPath, `${contractName}.sol`, `${contractName}.json`);
+      if (fs.existsSync(directPath)) {
+        const artifactData = JSON.parse(fs.readFileSync(directPath, 'utf8'));
+        if (artifactData.abi && artifactData.bytecode && artifactData.bytecode.object) {
+          return {
+            contractName,
+            address: '',
+            abi: artifactData.abi,
+            bytecode: artifactData.bytecode.object,
+            deployedBytecode: artifactData.deployedBytecode?.object || '',
+            network: ''
+          };
         }
       }
 
-      // Also scan all directories to find the contract
+      // Strategy 2: Scan all directories
       const contractDirs = fs.readdirSync(outPath, { withFileTypes: true })
         .filter(dirent => dirent.isDirectory())
         .map(dirent => dirent.name);
 
       for (const contractDir of contractDirs) {
         const contractPath = path.join(outPath, contractDir);
+        
+        // Check if this directory contains our target contract
         const jsonFiles = fs.readdirSync(contractPath)
           .filter(file => file.endsWith('.json') && !file.startsWith('.'));
         
         for (const jsonFile of jsonFiles) {
           if (path.basename(jsonFile, '.json') === contractName) {
-            const artifactPath = path.join(contractPath, jsonFile);
-            const artifactData = JSON.parse(fs.readFileSync(artifactPath, 'utf8'));
-            
-            if (artifactData.abi && artifactData.bytecode && artifactData.bytecode.object) {
-              return {
-                contractName,
-                address: '',
-                abi: artifactData.abi,
-                bytecode: artifactData.bytecode.object,
-                deployedBytecode: artifactData.deployedBytecode?.object || '',
-                network: ''
-              };
+            try {
+              const artifactPath = path.join(contractPath, jsonFile);
+              const artifactData = JSON.parse(fs.readFileSync(artifactPath, 'utf8'));
+              
+              if (artifactData.abi && artifactData.bytecode && artifactData.bytecode.object) {
+                return {
+                  contractName,
+                  address: '',
+                  abi: artifactData.abi,
+                  bytecode: artifactData.bytecode.object,
+                  deployedBytecode: artifactData.deployedBytecode?.object || '',
+                  network: ''
+                };
+              }
+            } catch (parseError) {
+              console.warn(`Failed to parse artifact ${jsonFile}:`, parseError);
             }
           }
         }
       }
+
+      // Strategy 3: Try to find any file that might contain the contract
+      for (const contractDir of contractDirs) {
+        const contractPath = path.join(outPath, contractDir);
+        const jsonFiles = fs.readdirSync(contractPath)
+          .filter(file => file.endsWith('.json') && !file.startsWith('.'));
+        
+        for (const jsonFile of jsonFiles) {
+          try {
+            const artifactPath = path.join(contractPath, jsonFile);
+            const artifactData = JSON.parse(fs.readFileSync(artifactPath, 'utf8'));
+            
+            // Check if this artifact contains our contract name in any field
+            if (artifactData.contractName === contractName || 
+                artifactData.sourceName?.includes(contractName) ||
+                jsonFile.includes(contractName)) {
+              
+              if (artifactData.abi && artifactData.bytecode && artifactData.bytecode.object) {
+                return {
+                  contractName,
+                  address: '',
+                  abi: artifactData.abi,
+                  bytecode: artifactData.bytecode.object,
+                  deployedBytecode: artifactData.deployedBytecode?.object || '',
+                  network: ''
+                };
+              }
+            }
+          } catch (parseError) {
+            console.warn(`Failed to parse artifact ${jsonFile}:`, parseError);
+          }
+        }
+      }
+
     } catch (error) {
       console.error(`Error getting artifact for ${contractName}:`, error);
     }

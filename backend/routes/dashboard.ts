@@ -1,5 +1,4 @@
 import express from 'express';
-
 import { getConfig, updateConfig } from '../services/dashboard/configService';
 import { getGitHubService } from '../services/dashboard/githubService';
 import { verifyGitHubWebhook } from '../middleware/githubWebhook';
@@ -11,11 +10,15 @@ import { getContracts } from '../services/dashboard/contractsService';
 import { getContractsMetadata } from '../services/dashboard/contractsMetadataService';
 import { DeploymentService } from '../services/deployment';
 import { EventListenerService } from '../services/events/eventListenerService';
+import { ArtifactScanner } from '../services/deployment/artifactScanner';
+import path from 'path';
 
 const router = express.Router();
 
 // Mount deployment routes
 router.use('/deployments', deploymentRoutes);
+
+// Import quick actions after deployment routes
 import quickActionsRoutes from './quickActions';
 router.use('/quick-actions', quickActionsRoutes);
 
@@ -39,20 +42,70 @@ router.get('/contractsMetadata', (req, res) => {
 });
 
 const deploymentService = DeploymentService.getInstance();
-// EventListenerService is initialized in app.ts
 
-router.get('/config', async (req, res) => {
+// Fixed POST /deployments/:projectId/deploy endpoint
+router.post('/deployments/:projectId/deploy', async (req, res) => {
   try {
-    const config = await getConfig();
-    res.json({ 
+    const { contractName, constructorArgs, network, rpcUrl } = req.body;
+    const { projectId } = req.params;
+
+    if (!contractName || !network) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: contractName, network',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // Get contract metadata
+    const contractsMetadata = getContractsMetadata();
+    const contractMeta = contractsMetadata.find(c => c.name === contractName);
+    if (!contractMeta) {
+      return res.status(404).json({
+        success: false,
+        error: `Contract metadata not found for ${contractName}`,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // Get the artifact for the contract using proper path
+    const contractsPath = path.join(__dirname, '../../contracts');
+    const scanner = new ArtifactScanner(
+      rpcUrl || process.env[`${network.toUpperCase()}_RPC_URL`] || 'http://localhost:8545', 
+      contractsPath
+    );
+    
+    const artifact = await scanner.getArtifactByName(contractName);
+    
+    if (!artifact) {
+      return res.status(404).json({
+        success: false,
+        error: `Artifact not found for contract ${contractName}`,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // Deploy contract with constructor parameters
+    const deploymentResult = await deploymentService.deployContract(
+      artifact,
+      { 
+        name: network, 
+        rpcUrl: rpcUrl || process.env[`${network.toUpperCase()}_RPC_URL`] || 'http://localhost:8545' 
+      },
+      projectId || 'default',
+      constructorArgs || []
+    );
+
+    res.json({
       success: true,
-      data: config,
+      data: deploymentResult,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    res.status(500).json({ 
+    console.error('Deployment error:', error);
+    res.status(500).json({
       success: false,
-      error: 'Failed to load dashboard configuration',
+      error: 'Failed to deploy contract',
       details: error instanceof Error ? error.message : String(error),
       timestamp: new Date().toISOString()
     });
@@ -136,10 +189,11 @@ router.get('/contracts', async (req, res) => {
   }
 });
 
-// New POST /deployments/:projectId/deploy endpoint
+// Fixed POST /deployments/:projectId/deploy endpoint
 router.post('/deployments/:projectId/deploy', async (req, res) => {
   try {
-    const { contractName, constructorArgs, network, rpcUrl, projectId } = req.body;
+    const { contractName, constructorArgs, network, rpcUrl } = req.body;
+    const { projectId } = req.params;
 
     if (!contractName || !network) {
       return res.status(400).json({
@@ -160,10 +214,13 @@ router.post('/deployments/:projectId/deploy', async (req, res) => {
       });
     }
 
-    // Get the artifact for the contract
-    const path = require('path');
+    // Get the artifact for the contract using proper path
     const contractsPath = path.join(__dirname, '../../contracts');
-    const scanner = new (require('../services/deployment/artifactScanner').ArtifactScanner)('http://localhost:8545', contractsPath);
+    const scanner = new ArtifactScanner(
+      rpcUrl || process.env[`${network.toUpperCase()}_RPC_URL`] || 'http://localhost:8545', 
+      contractsPath
+    );
+    
     const artifact = await scanner.getArtifactByName(contractName);
     
     if (!artifact) {
@@ -177,7 +234,10 @@ router.post('/deployments/:projectId/deploy', async (req, res) => {
     // Deploy contract with constructor parameters
     const deploymentResult = await deploymentService.deployContract(
       artifact,
-      { name: network, rpcUrl: process.env[`${network.toUpperCase()}_RPC_URL`] || rpcUrl || 'http://localhost:8545' },
+      { 
+        name: network, 
+        rpcUrl: rpcUrl || process.env[`${network.toUpperCase()}_RPC_URL`] || 'http://localhost:8545' 
+      },
       projectId || 'default',
       constructorArgs || []
     );
@@ -188,6 +248,7 @@ router.post('/deployments/:projectId/deploy', async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
+    console.error('Deployment error:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to deploy contract',
