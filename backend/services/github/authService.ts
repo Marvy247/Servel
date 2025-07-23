@@ -27,7 +27,7 @@ class GitHubAuthService {
   constructor() {
     this.clientId = process.env.GITHUB_CLIENT_ID || '';
     this.clientSecret = process.env.GITHUB_CLIENT_SECRET || '';
-    this.redirectUri = process.env.GITHUB_REDIRECT_URI || 'http://localhost:3000/api/github/callback';
+    this.redirectUri = process.env.GITHUB_CALLBACK_URL || 'http://localhost:3001/api/github/auth/callback';
     
     if (!this.clientId || !this.clientSecret) {
       throw new Error('GitHub OAuth credentials not configured');
