@@ -50,7 +50,6 @@ router.get('/:projectId', async (req, res) => {
       filters.branch = branch as string;
     }
 
-    // Handle range filter (e.g., '7d', '30d', 'all')
     if (range && range !== 'all') {
       const now = new Date();
       let fromDate: Date;
@@ -107,7 +106,6 @@ router.get('/:projectId/addresses', async (req, res) => {
     const allDeployments = deploymentService.getTrackedDeployments();
     console.log('Tracked deployments:', allDeployments);
 
-    // Remove fallback to current time for lastDeployed to ensure accurate timestamps
     const deploymentsWithTimestamp = Object.fromEntries(
       Object.entries(allDeployments).map(([network, deployments]) => [
         network,
@@ -134,7 +132,7 @@ router.get('/:projectId/addresses', async (req, res) => {
   }
 });
 
-// Fixed POST /:projectId/deploy endpoint
+// FIXED: Enhanced POST /:projectId/deploy endpoint with proper parameter handling
 router.post('/:projectId/deploy', async (req, res) => {
   try {
     const { contractName, constructorArgs, network, rpcUrl } = req.body;
@@ -148,7 +146,7 @@ router.post('/:projectId/deploy', async (req, res) => {
       });
     }
 
-    // Find contract metadata to get basic info
+    // Find contract metadata to get constructor parameter info
     const contractsMetadata = getContractsMetadata();
     const contractMetadata = contractsMetadata.find((c: any) => c.name === contractName);
     if (!contractMetadata) {
@@ -159,8 +157,7 @@ router.post('/:projectId/deploy', async (req, res) => {
       });
     }
 
-    // Use the deployment service's scanner properly
-    // Access the scanner through the deployment service instance
+    // Get artifact
     const scanner = (deploymentService as any).scanner;
     if (!scanner) {
       return res.status(500).json({
@@ -179,7 +176,67 @@ router.post('/:projectId/deploy', async (req, res) => {
       });
     }
 
-    // Deploy contract
+    // FIXED: Enhanced parameter validation and processing
+    const expectedParams = contractMetadata.constructorParams || [];
+    let processedArgs: any[] = [];
+
+    if (constructorArgs && Array.isArray(constructorArgs)) {
+      processedArgs = constructorArgs;
+    } else if (constructorArgs && typeof constructorArgs === 'object') {
+      // Handle object format { paramName: value }
+      processedArgs = expectedParams.map(param => constructorArgs[param.name]);
+    } else {
+      processedArgs = [];
+    }
+
+    // FIXED: Validate parameter count
+    if (expectedParams.length !== processedArgs.length) {
+      return res.status(400).json({
+        success: false,
+        error: 'Constructor parameter mismatch',
+        details: {
+          expected: expectedParams.length,
+          received: processedArgs.length,
+          expectedParams: expectedParams.map(p => `${p.name} (${p.type})`),
+          provided: processedArgs
+        },
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // FIXED: Type conversion for constructor parameters
+    const typedArgs = processedArgs.map((arg, index) => {
+      if (index < expectedParams.length) {
+        const param = expectedParams[index];
+        try {
+          switch (param.type) {
+            case 'uint256':
+            case 'uint128':
+            case 'uint64':
+            case 'uint32':
+            case 'uint16':
+            case 'uint8':
+              return BigInt(arg).toString();
+            case 'address':
+              if (!/^0x[a-fA-F0-9]{40}$/.test(arg)) {
+                throw new Error(`Invalid address format: ${arg}`);
+              }
+              return arg;
+            case 'string':
+              return arg;
+            case 'bool':
+              return arg === 'true' || arg === true || arg === '1';
+            default:
+              return arg;
+          }
+        } catch (error) {
+          throw new Error(`Invalid value for parameter ${param.name} (${param.type}): ${arg}`);
+        }
+      }
+      return arg;
+    });
+
+    // Deploy contract with properly typed arguments
     const deploymentResult = await deploymentService.deployContract(
       artifact,
       { 
@@ -187,7 +244,7 @@ router.post('/:projectId/deploy', async (req, res) => {
         rpcUrl: rpcUrl || process.env[`${network.toUpperCase()}_RPC_URL`] || 'http://localhost:8545' 
       },
       projectId,
-      constructorArgs || []
+      typedArgs
     );
 
     res.json({

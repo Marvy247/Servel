@@ -3,6 +3,7 @@ import cors from 'cors';
 import { verifyGitHubWebhook } from './middleware/githubWebhook';
 import apiRoutes from './routes/api';
 import dashboardRoutes from './routes/dashboard';
+import githubRoutes from './routes/github';
 import { EventListenerService } from './services/events/eventListenerService';
 
 import { TestResultEventService } from './services/events/testResultEventService';
@@ -31,6 +32,8 @@ app.use('/api', apiRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/quickActions', quickActionsRoutes);
 app.use('/api/notification', notificationRoutes);
+app.use('/api/deployments', deploymentRoutes);
+app.use('/api/github', githubRoutes);
 
 // Initialize WebSocket EventListenerService
 const providerUrl = process.env.PROVIDER_URL || 'http://localhost:8545';

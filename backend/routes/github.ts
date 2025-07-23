@@ -1,11 +1,19 @@
 import express from 'express';
+import authRouter from './github/auth';
+import repositoryRouter from './github/repository';
 import { getGitHubService, GitHubService } from '../services/dashboard/githubService';
 import { githubWebhookLimiter } from '../middleware/rateLimiter';
 import { validateRunId } from '../utils/validators';
 
 const router = express.Router();
 
-// Apply general rate limiting to all GitHub routes
+// Mount auth routes at /auth
+router.use('/auth', authRouter);
+
+// Mount repository routes at /repos
+router.use('/repos', repositoryRouter);
+
+// Apply general rate limiting to remaining GitHub routes
 router.use(githubWebhookLimiter);
 let githubService: GitHubService | null = null;
 

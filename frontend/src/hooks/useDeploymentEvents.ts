@@ -19,7 +19,7 @@ export function useDeploymentEvents(onDeployment: (event: DeploymentEvent['data'
 
     const connect = () => {
       try {
-        ws = new WebSocket(`ws://${window.location.hostname}:8081`);
+        ws = new WebSocket('ws://localhost:8081');
 
         ws.onopen = () => {
           console.log('WebSocket connection opened');

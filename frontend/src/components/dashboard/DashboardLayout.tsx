@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FaCogs, FaListAlt, FaChartLine, FaClipboardList, FaFileContract, FaRocket } from 'react-icons/fa';
+import { FaCogs, FaListAlt, FaChartLine, FaClipboardList, FaFileContract, FaRocket, FaGithub } from 'react-icons/fa';
 import { FiActivity, FiCheckCircle, FiAlertTriangle, FiClock, FiGitBranch, FiPackage } from 'react-icons/fi';
 import ContractInteraction from './ContractInteraction';
 import EventLogViewer from './EventLogViewer';
@@ -21,10 +21,11 @@ import { useWeb3 } from '../../providers/web3';
 import { Web3Provider } from '../../providers/web3';
 import NotificationPreferences from './NotificationPreferences';
 import DeploymentPage from '../../app/dashboard/deployment/page';
+import { GitHubTab } from './GitHubTab';
 
 const DashboardLayout: React.FC = () => {
   const { address } = useWeb3();
-  const [activeTab, setActiveTab] = useState<'interaction' | 'events' | 'monitor' | 'testing' | 'contracts' | 'deployment'>('interaction');
+  const [activeTab, setActiveTab] = useState<'interaction' | 'events' | 'monitor' | 'testing' | 'contracts' | 'deployment' | 'github'>('interaction');
   const [ciStatus, setCiStatus] = useState<'success' | 'failed' | 'running'>('running');
   const [network, setNetwork] = useState<'sepolia' | 'anvil'>('sepolia');
 
@@ -190,7 +191,7 @@ const DashboardLayout: React.FC = () => {
             <div className="lg:col-span-3">
               {/* Tab Navigation */}
               <div className="flex overflow-x-auto scrollbar-hide mb-6">
-                <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
+              <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
                   <button
                     className={`px-4 py-2 text-sm font-medium rounded-md flex items-center space-x-2 transition-colors ${
                       activeTab === 'interaction' 
@@ -257,6 +258,17 @@ const DashboardLayout: React.FC = () => {
                     <FaRocket className="text-current" />
                     <span>Deployment</span>
                   </button>
+                  <button
+                    className={`px-4 py-2 text-sm font-medium rounded-md flex items-center space-x-2 transition-colors ${
+                      activeTab === 'github' 
+                        ? 'bg-white shadow-sm text-blue-600' 
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                    onClick={() => setActiveTab('github')}
+                  >
+                    <FaGithub className="text-current" />
+                    <span>GitHub</span>
+                  </button>
                 </div>
               </div>
 
@@ -300,6 +312,10 @@ const DashboardLayout: React.FC = () => {
                   <div className="p-6">
                     {/* Replace DeploymentWizard with DeploymentPage */}
                     <DeploymentPage />
+                  </div>
+                ) : activeTab === 'github' ? (
+                  <div className="p-6">
+                    <GitHubTab />
                   </div>
                 ) : null}
               </div>

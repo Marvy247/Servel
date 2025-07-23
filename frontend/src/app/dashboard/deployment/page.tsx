@@ -88,7 +88,7 @@ const DeploymentPage: React.FC = () => {
   useEffect(() => {
     async function fetchContracts() {
       try {
-        const response = await axios.get('/api/dashboard/contractsMetadata');
+        const response = await axios.get('http://localhost:3001/api/dashboard/contractsMetadata');
         setContracts(response.data.data);
       } catch (error) {
         console.error('Failed to fetch contracts metadata:', error);
@@ -132,7 +132,7 @@ const DeploymentPage: React.FC = () => {
     try {
       const argsArray = selectedContract.constructorParams.map(param => constructorArgs[param.name] || '');
       const projectId = 'default'; // This can be made dynamic based on user selection
-      const response = await axios.post(`/api/dashboard/deployments/${projectId}/deploy`, {
+      const response = await axios.post(`http://localhost:3001/api/dashboard/deployments/${projectId}/deploy`, {
         contractName: selectedContract.name,
         constructorArgs: argsArray,
         network,

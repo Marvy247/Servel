@@ -71,7 +71,7 @@ router.post('/deployments/:projectId/deploy', async (req, res) => {
     // Get the artifact for the contract using proper path
     const contractsPath = path.join(__dirname, '../../contracts');
     const scanner = new ArtifactScanner(
-      rpcUrl || process.env[`${network.toUpperCase()}_RPC_URL`] || 'http://localhost:8545', 
+      rpcUrl || process.env[`${network.toUpperCase()}_RPC_URL`] || 'http://localhost:8545',
       contractsPath
     );
     
@@ -86,11 +86,11 @@ router.post('/deployments/:projectId/deploy', async (req, res) => {
     }
 
     // Deploy contract with constructor parameters
-    const deploymentResult = await deploymentService.deployContract(
+      const deploymentResult = await deploymentService.deployContract(
       artifact,
       { 
         name: network, 
-        rpcUrl: rpcUrl || process.env[`${network.toUpperCase()}_RPC_URL`] || 'http://localhost:8545' 
+        rpcUrl: rpcUrl || process.env[`${network.toUpperCase()}_RPC_URL`] || 'http://localhost:8545'
       },
       projectId || 'default',
       constructorArgs || []
@@ -150,25 +150,6 @@ router.get('/gas-usage', async (req, res) => {
   }
 });
 
-router.put('/config', async (req, res) => {
-  try {
-    const updates: Partial<DashboardConfig> = req.body;
-    const updatedConfig = await updateConfig(updates);
-    res.json({ 
-      success: true,
-      data: updatedConfig,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    res.status(500).json({ 
-      success: false,
-      error: 'Failed to update configuration',
-      details: error instanceof Error ? error.message : String(error),
-      timestamp: new Date().toISOString()
-    });
-  }
-});
-
 // Existing contracts endpoint
 router.get('/contracts', async (req, res) => {
   try {
@@ -183,75 +164,6 @@ router.get('/contracts', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to fetch contracts',
-      details: error instanceof Error ? error.message : String(error),
-      timestamp: new Date().toISOString()
-    });
-  }
-});
-
-// Fixed POST /deployments/:projectId/deploy endpoint
-router.post('/deployments/:projectId/deploy', async (req, res) => {
-  try {
-    const { contractName, constructorArgs, network, rpcUrl } = req.body;
-    const { projectId } = req.params;
-
-    if (!contractName || !network) {
-      return res.status(400).json({
-        success: false,
-        error: 'Missing required fields: contractName, network',
-        timestamp: new Date().toISOString()
-      });
-    }
-
-    // Get contract metadata
-    const contractsMetadata = getContractsMetadata();
-    const contractMeta = contractsMetadata.find(c => c.name === contractName);
-    if (!contractMeta) {
-      return res.status(404).json({
-        success: false,
-        error: `Contract metadata not found for ${contractName}`,
-        timestamp: new Date().toISOString()
-      });
-    }
-
-    // Get the artifact for the contract using proper path
-    const contractsPath = path.join(__dirname, '../../contracts');
-    const scanner = new ArtifactScanner(
-      rpcUrl || process.env[`${network.toUpperCase()}_RPC_URL`] || 'http://localhost:8545', 
-      contractsPath
-    );
-    
-    const artifact = await scanner.getArtifactByName(contractName);
-    
-    if (!artifact) {
-      return res.status(404).json({
-        success: false,
-        error: `Artifact not found for contract ${contractName}`,
-        timestamp: new Date().toISOString()
-      });
-    }
-
-    // Deploy contract with constructor parameters
-    const deploymentResult = await deploymentService.deployContract(
-      artifact,
-      { 
-        name: network, 
-        rpcUrl: rpcUrl || process.env[`${network.toUpperCase()}_RPC_URL`] || 'http://localhost:8545' 
-      },
-      projectId || 'default',
-      constructorArgs || []
-    );
-
-    res.json({
-      success: true,
-      data: deploymentResult,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    console.error('Deployment error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to deploy contract',
       details: error instanceof Error ? error.message : String(error),
       timestamp: new Date().toISOString()
     });
@@ -355,44 +267,6 @@ router.get('/test-results', async (req, res) => {
   }
 });
 
-router.get('/slither-report', async (req, res) => {
-  try {
-    const { runId } = req.query;
-    const github = await getGitHubService();
-    // Get Slither report from artifacts
-    const artifacts = await github.getWorkflowArtifacts(runId as string);
-    const slitherArtifact = artifacts.find(a => a.name === 'slither-report');
-    
-    let report = {
-      vulnerabilities: [],
-      detectors: [],
-      summary: {
-        high: 0,
-        medium: 0,
-        low: 0,
-        informational: 0
-      }
-    };
-
-    if (slitherArtifact) {
-      report = await github.parseSlitherReport(slitherArtifact.id);
-    }
-
-    res.json({
-      success: true,
-      data: report,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch Slither report',
-      details: error instanceof Error ? error.message : String(error),
-      timestamp: new Date().toISOString()
-    });
-  }
-});
-
 router.get('/test-coverage', async (req, res) => {
   try {
     const { projectId, runId } = req.query;
@@ -426,7 +300,7 @@ router.get('/test-coverage', async (req, res) => {
       details: error instanceof Error ? error.message : String(error),
       timestamp: new Date().toISOString()
     });
-    }
+  }
 });
 
 router.post('/github/webhook', verifyGitHubWebhook(process.env.GITHUB_WEBHOOK_SECRET || ''), async (req, res) => {
