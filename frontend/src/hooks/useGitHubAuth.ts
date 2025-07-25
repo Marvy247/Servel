@@ -20,9 +20,24 @@ export const useGitHubAuth = () => {
   });
 
   useEffect(() => {
-    // Check authentication status
+    // Check authentication status and handle redirect
     const checkAuth = async () => {
       try {
+        // Check if we're coming from GitHub OAuth
+        const urlParams = new URLSearchParams(window.location.search);
+        const success = urlParams.get('success');
+        const error = urlParams.get('error');
+        
+        if (success) {
+          // Clean up URL
+          window.history.replaceState({}, document.title, '/dashboard/github');
+        }
+        
+        if (error) {
+          console.error('GitHub OAuth error:', error);
+          window.history.replaceState({}, document.title, '/dashboard/github');
+        }
+
         const response = await fetch('/api/github/auth/status');
         const data = await response.json();
         

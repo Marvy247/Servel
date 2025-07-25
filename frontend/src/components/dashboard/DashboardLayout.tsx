@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FaCogs, FaListAlt, FaChartLine, FaClipboardList, FaFileContract, FaRocket, FaGithub } from 'react-icons/fa';
 import { FiActivity, FiCheckCircle, FiAlertTriangle, FiClock, FiGitBranch, FiPackage } from 'react-icons/fi';
 import ContractInteraction from './ContractInteraction';
@@ -26,6 +26,18 @@ import { GitHubTab } from './GitHubTab';
 const DashboardLayout: React.FC = () => {
   const { address } = useWeb3();
   const [activeTab, setActiveTab] = useState<'interaction' | 'events' | 'monitor' | 'testing' | 'contracts' | 'deployment' | 'github'>('interaction');
+
+  // Check for GitHub OAuth redirect
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const success = urlParams.get('success');
+    
+    if (success === 'true') {
+      setActiveTab('github');
+      // Clean up URL
+      window.history.replaceState({}, document.title, '/dashboard/github');
+    }
+  }, []);
   const [ciStatus, setCiStatus] = useState<'success' | 'failed' | 'running'>('running');
   const [network, setNetwork] = useState<'sepolia' | 'anvil'>('sepolia');
 

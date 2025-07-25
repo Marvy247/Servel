@@ -11,11 +11,17 @@ router.use(githubWebhookLimiter);
 router.get('/status', async (req, res) => {
   try {
     // In a real implementation, this would check session/token validity
-    // For now, we'll return a mock response indicating not authenticated
+    // For now, we'll return a mock response indicating authenticated
     res.json({
-      authenticated: false,
-      user: null,
-      message: 'User not authenticated'
+      authenticated: true,
+      user: {
+        id: 12345,
+        login: 'githubuser',
+        name: 'GitHub User',
+        email: 'user@github.com',
+        avatar_url: 'https://github.com/githubuser.png'
+      },
+      message: 'User authenticated'
     });
   } catch (error) {
     res.status(500).json({
@@ -48,28 +54,17 @@ router.get('/callback', async (req, res) => {
     const { code, state } = req.query;
     
     if (!code || !state) {
-      return res.status(400).json({
-        success: false,
-        error: 'Missing code or state parameter'
-      });
+      return res.redirect('http://localhost:3000/dashboard/github?error=missing_params');
     }
 
     const authService = await getGitHubAuthService();
     const user = await authService.exchangeCodeForToken(code as string, state as string);
     
     // Store user session (in a real app, you'd use Redis or similar)
-    // For now, we'll just return the user info
-    res.json({
-      success: true,
-      user,
-      message: 'GitHub OAuth authentication successful'
-    });
+    // For now, we'll redirect to GitHub tab
+    res.redirect('http://localhost:3000/dashboard/github?success=true');
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: 'OAuth authentication failed',
-      details: error instanceof Error ? error.message : String(error)
-    });
+    res.redirect(`http://localhost:3000/dashboard/github?error=${encodeURIComponent(error instanceof Error ? error.message : String(error))}`);
   }
 });
 

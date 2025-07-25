@@ -17,39 +17,8 @@ export function GitHubLoginButton({ onLoginSuccess, className }: GitHubLoginButt
   const handleGitHubLogin = async () => {
     setLoading(true);
     try {
-      // In a real implementation, this would initiate OAuth flow
-      const response = await fetch('/api/github/auth');
-      const data = await response.json();
-      
-      if (data.success) {
-        // Open OAuth popup
-        const popup = window.open(
-          data.url,
-          'GitHub OAuth',
-          'width=600,height=700,scrollbars=yes,resizable=yes'
-        );
-        
-        // Listen for OAuth completion
-        const handleMessage = (event: MessageEvent) => {
-          if (event.origin !== window.location.origin) return;
-          
-          if (event.data.type === 'GITHUB_OAUTH_SUCCESS') {
-            popup?.close();
-            window.removeEventListener('message', handleMessage);
-            
-            toast({
-              title: 'Success',
-              description: 'Successfully connected to GitHub',
-            });
-            
-            onLoginSuccess?.(event.data.user);
-          }
-        };
-        
-        window.addEventListener('message', handleMessage);
-      } else {
-        throw new Error(data.error || 'Failed to initiate GitHub login');
-      }
+      // Redirect to GitHub OAuth flow
+      window.location.href = 'http://localhost:3001/api/github/auth';
     } catch (error) {
       toast({
         title: 'Error',
